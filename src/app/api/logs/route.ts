@@ -4,10 +4,10 @@ import { join } from "path";
 
 const LOG_ROOT = process.env.LOG_ROOT ?? "/home/azureuser/claudetrades";
 
-const ALLOWED_LOGS: Record<string, string> = {
-  "earnings-trade": "earnings-trade/earnings-trade.log",
-  copytrade: "copytrade/copytrade.log",
-  cosmos: "cosmos_sync.log",
+const ALLOWED_LOGS: Record<string, string[]> = {
+  "earnings-trade": ["earnings-trade.log", "earnings-trade/earnings-trade.log"],
+  copytrade: ["copytrade.log", "copytrade/copytrade.log"],
+  cosmos: ["cosmos_sync.log"],
 };
 
 export async function GET(req: NextRequest) {
@@ -16,12 +16,25 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get("search") ?? "";
   const level = req.nextUrl.searchParams.get("level") ?? "";
 
-  const relPath = ALLOWED_LOGS[name];
-  if (!relPath) {
+  const candidates = ALLOWED_LOGS[name];
+  if (!candidates) {
     return NextResponse.json({ error: `Unknown log: ${name}` }, { status: 400 });
   }
 
-  const fullPath = join(LOG_ROOT, relPath);
+  let fullPath = "";
+  let relPath = candidates[0];
+  for (const c of candidates) {
+    const p = join(LOG_ROOT, c);
+    try {
+      await stat(p);
+      fullPath = p;
+      relPath = c;
+      break;
+    } catch { /* try next */ }
+  }
+  if (!fullPath) {
+    return NextResponse.json({ name, file: relPath, sizeBytes: 0, totalLines: 0, lines: [] });
+  }
 
   try {
     const info = await stat(fullPath);

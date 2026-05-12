@@ -8,38 +8,29 @@ export async function GET() {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    const [totalTrades, todayTrades, statusBreakdown, totalSignals, buySignals] =
+    const safeQuery = async <T>(container: Awaited<ReturnType<typeof getContainer>>, query: string, parameters?: { name: string; value: string | number | boolean }[]): Promise<T[]> => {
+      try {
+        const res = await container.items.query<T>({ query, parameters }).fetchAll();
+        return res.resources;
+      } catch {
+        return [];
+      }
+    };
+
+    const [totalTradesRes, todayTradesRes, statusBreakdownRes, totalSignalsRes, buySignalsRes] =
       await Promise.all([
-        trades.items
-          .query<number>({ query: "SELECT VALUE COUNT(1) FROM c" })
-          .fetchAll()
-          .then((r) => r.resources[0] ?? 0),
-        trades.items
-          .query<number>({
-            query: "SELECT VALUE COUNT(1) FROM c WHERE STARTSWITH(c.timestamp, @today)",
-            parameters: [{ name: "@today", value: today }],
-          })
-          .fetchAll()
-          .then((r) => r.resources[0] ?? 0),
-        trades.items
-          .query<{ status: string; count: number }>({
-            query:
-              "SELECT c.status, COUNT(1) as count FROM c GROUP BY c.status",
-          })
-          .fetchAll()
-          .then((r) => r.resources),
-        signals.items
-          .query<number>({ query: "SELECT VALUE COUNT(1) FROM c" })
-          .fetchAll()
-          .then((r) => r.resources[0] ?? 0),
-        signals.items
-          .query<number>({
-            query:
-              'SELECT VALUE COUNT(1) FROM c WHERE c.rating = "BUY"',
-          })
-          .fetchAll()
-          .then((r) => r.resources[0] ?? 0),
+        safeQuery<number>(trades, "SELECT VALUE COUNT(1) FROM c"),
+        safeQuery<number>(trades, "SELECT VALUE COUNT(1) FROM c WHERE STARTSWITH(c.timestamp, @today)", [{ name: "@today", value: today }]),
+        safeQuery<{ status: string; count: number }>(trades, "SELECT c.status, COUNT(1) as count FROM c GROUP BY c.status"),
+        safeQuery<number>(signals, "SELECT VALUE COUNT(1) FROM c"),
+        safeQuery<number>(signals, 'SELECT VALUE COUNT(1) FROM c WHERE c.rating = "BUY"'),
       ]);
+
+    const totalTrades = totalTradesRes[0] ?? 0;
+    const todayTrades = todayTradesRes[0] ?? 0;
+    const statusBreakdown = statusBreakdownRes;
+    const totalSignals = totalSignalsRes[0] ?? 0;
+    const buySignals = buySignalsRes[0] ?? 0;
 
     return NextResponse.json({
       totalTrades,
