@@ -1,0 +1,19 @@
+services:
+  trade-scout-viewer:
+    build:
+      context: .
+      args:
+        COSMOS_ENDPOINT: ${COSMOS_ENDPOINT}
+        COSMOS_KEY: ${COSMOS_KEY}
+    image: ghcr.io/sushanth262/trade-scout-viewer:latest
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      COSMOS_ENDPOINT: ${COSMOS_ENDPOINT}
+      COSMOS_KEY: ${COSMOS_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,15 @@
+.page { display: flex; flex-direction: column; gap: 16px; }
+.title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.subtitle { font-size: 12px; color: var(--text-secondary); margin-top: -12px; }
+.ticker { font-weight: 700; color: var(--brand-500); }
+.confirmed { color: var(--success-700); font-weight: 600; font-size: 12px; }
+.unconfirmed { color: var(--text-tertiary); font-size: 12px; }
+
+.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 8px 0; }
+.pageBtn {
+  padding: 8px 18px; border: 1px solid var(--border-medium); border-radius: var(--radius-md);
+  background: white; font-size: 13px; font-weight: 500; color: var(--brand-500); cursor: pointer; transition: all 0.15s;
+}
+.pageBtn:hover:not(:disabled) { background: var(--brand-50); border-color: var(--brand-500); }
+.pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pageInfo { font-size: 12px; color: var(--text-secondary); }

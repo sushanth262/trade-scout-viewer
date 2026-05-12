@@ -1,0 +1,62 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+
+.header { margin-bottom: 4px; }
+.title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; color: var(--text-primary); }
+.subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  letter-spacing: -0.2px;
+}
+
+.breakdownCard, .recentCard { padding: 20px; }
+.breakdownList { display: flex; flex-direction: column; gap: 8px; }
+.breakdownRow { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.breakdownCount { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+
+.activityList { display: flex; flex-direction: column; gap: 0; }
+.activityItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.activityItem:last-child { border-bottom: none; }
+
+.activityLeft { display: flex; align-items: center; gap: 10px; }
+.activityRight { display: flex; align-items: center; gap: 12px; }
+
+.ticker { font-size: 14px; font-weight: 700; color: var(--brand-500); letter-spacing: -0.2px; min-width: 50px; }
+.price { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.notional { font-size: 12px; color: var(--text-secondary); }
+
+.time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.emptyText { color: var(--text-tertiary); font-size: 13px; text-align: center; padding: 24px 0; }

@@ -1,0 +1,50 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.search {
+  padding: 8px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--canvas);
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search:focus { border-color: var(--brand-500); }
+.search::placeholder { color: var(--text-tertiary); }
+
+.group { display: flex; flex-direction: column; gap: 4px; }
+.label { font-size: 10px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; color: var(--text-secondary); }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.chip {
+  padding: 5px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-medium);
+  background: white;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.chip:hover { border-color: var(--brand-500); color: var(--brand-500); }
+
+.active {
+  background: var(--brand-500) !important;
+  color: white !important;
+  border-color: var(--brand-500) !important;
+}

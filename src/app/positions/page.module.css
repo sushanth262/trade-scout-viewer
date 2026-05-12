@@ -1,0 +1,36 @@
+.page { display: flex; flex-direction: column; gap: 16px; }
+.title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.subtitle { font-size: 12px; color: var(--text-secondary); margin-top: -12px; }
+
+.sectionTitle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600; color: var(--text-primary); margin-top: 8px;
+}
+
+.posGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.posCard { padding: 16px; }
+
+.posHeader {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-light);
+}
+
+.ticker { font-size: 18px; font-weight: 700; color: var(--brand-500); }
+
+.posMetrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
+.posMetric { display: flex; flex-direction: column; gap: 2px; }
+.posLabel { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-secondary); }
+.posValue { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 4px; }
+
+.gainUp { color: var(--success-700); }
+.gainDown { color: var(--danger-700); }
+
+.emptyText { color: var(--text-tertiary); font-size: 13px; text-align: center; padding: 24px 0; }
+.loading { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px; color: var(--text-secondary); font-size: 13px; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border-light); border-top-color: var(--brand-500); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
