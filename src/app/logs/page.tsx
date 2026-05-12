@@ -82,7 +82,7 @@ export default function LogsPage() {
 
   return (
     <div className={styles.page}>
-      <div>
+      <div className={styles.header}>
         <h1 className={styles.title}>Bot Logs</h1>
         <p className={styles.subtitle}>Live log viewer for trading bots and Cosmos sync</p>
       </div>
