@@ -10,6 +10,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
+ARG BASE_PATH=""
+ENV BASE_PATH=$BASE_PATH
 RUN npm run build
 
 FROM base AS runner
