@@ -1,21 +1,31 @@
 import { NextResponse } from "next/server";
 import { getContainer } from "@/lib/cosmos";
+import { Container } from "@azure/cosmos";
+
+async function safeContainer(name: string): Promise<Container | null> {
+  try {
+    return await getContainer(name);
+  } catch {
+    return null;
+  }
+}
+
+async function safeQuery<T>(container: Container | null, query: string, parameters?: { name: string; value: string | number | boolean }[]): Promise<T[]> {
+  if (!container) return [];
+  try {
+    const res = await container.items.query<T>({ query, parameters }).fetchAll();
+    return res.resources;
+  } catch {
+    return [];
+  }
+}
 
 export async function GET() {
   try {
-    const trades = await getContainer("trades");
-    const signals = await getContainer("signals");
+    const trades = await safeContainer("trades");
+    const signals = await safeContainer("signals");
 
     const today = new Date().toISOString().slice(0, 10);
-
-    const safeQuery = async <T>(container: Awaited<ReturnType<typeof getContainer>>, query: string, parameters?: { name: string; value: string | number | boolean }[]): Promise<T[]> => {
-      try {
-        const res = await container.items.query<T>({ query, parameters }).fetchAll();
-        return res.resources;
-      } catch {
-        return [];
-      }
-    };
 
     const [totalTradesRes, todayTradesRes, statusBreakdownRes, totalSignalsRes, buySignalsRes] =
       await Promise.all([
@@ -26,21 +36,18 @@ export async function GET() {
         safeQuery<number>(signals, 'SELECT VALUE COUNT(1) FROM c WHERE c.rating = "BUY"'),
       ]);
 
-    const totalTrades = totalTradesRes[0] ?? 0;
-    const todayTrades = todayTradesRes[0] ?? 0;
-    const statusBreakdown = statusBreakdownRes;
-    const totalSignals = totalSignalsRes[0] ?? 0;
-    const buySignals = buySignalsRes[0] ?? 0;
-
     return NextResponse.json({
-      totalTrades,
-      todayTrades,
-      statusBreakdown,
-      totalSignals,
-      buySignals,
+      totalTrades: totalTradesRes[0] ?? 0,
+      todayTrades: todayTradesRes[0] ?? 0,
+      statusBreakdown: statusBreakdownRes,
+      totalSignals: totalSignalsRes[0] ?? 0,
+      buySignals: buySignalsRes[0] ?? 0,
     });
   } catch (err) {
     console.error("stats API error:", err);
-    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
+    return NextResponse.json({
+      totalTrades: 0, todayTrades: 0, statusBreakdown: [],
+      totalSignals: 0, buySignals: 0,
+    });
   }
 }
