@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(sp.get("offset") ?? "0");
 
     const conditions: string[] = [];
-    const params: { name: string; value: unknown }[] = [];
+    const params: { name: string; value: string | number | boolean }[] = [];
 
     if (ticker) {
       conditions.push("c.ticker = @ticker");

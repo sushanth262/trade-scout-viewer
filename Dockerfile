@@ -10,10 +10,6 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
-ARG COSMOS_ENDPOINT
-ARG COSMOS_KEY
-ENV COSMOS_ENDPOINT=$COSMOS_ENDPOINT
-ENV COSMOS_KEY=$COSMOS_KEY
 RUN npm run build
 
 FROM base AS runner
