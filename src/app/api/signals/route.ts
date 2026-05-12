@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer, Signal } from "@/lib/cosmos";
+import { isLocalRequest, rejectExternal } from "@/lib/localhost-only";
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isLocalRequest(req)) return rejectExternal();
+
   try {
     const body: Signal | Signal[] = await req.json();
     const items = Array.isArray(body) ? body : [body];
