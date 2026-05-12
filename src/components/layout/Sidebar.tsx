@@ -8,6 +8,7 @@ import {
   Radar,
   TrendingUp,
   Activity,
+  ScrollText,
   Settings,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
   { href: "/activity", label: "Activity Feed", icon: Activity },
+  { href: "/logs", label: "Bot Logs", icon: ScrollText },
 ];
 
 export default function Sidebar() {
@@ -27,9 +29,9 @@ export default function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logoWrap}>
         <div className={styles.logoBg}>
-          <Image src="/icon.png" alt="my-scoutify" width={32} height={32} />
+          <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.png`} alt="TradeHawk" width={32} height={32} unoptimized />
         </div>
-        <span className={styles.appName}>my-scoutify</span>
+        <span className={styles.appName}>TradeHawk</span>
       </div>
 
       <nav className={styles.nav}>
@@ -50,7 +52,7 @@ export default function Sidebar() {
 
       <div className={styles.footer}>
         <Settings size={14} />
-        <span>Trade Scout v0.1</span>
+        <span>TradeHawk v0.1</span>
       </div>
     </aside>
   );

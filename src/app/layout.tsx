@@ -5,7 +5,7 @@ import MobileNav from "@/components/layout/MobileNav";
 import styles from "./layout.module.css";
 
 export const metadata: Metadata = {
-  title: "my-scoutify | Trade Scout Viewer",
+  title: "TradeHawk | Trade Scout Viewer",
   description: "Trade task and transaction log viewer for earnings-trade bot",
   icons: { icon: "/icon.png" },
 };

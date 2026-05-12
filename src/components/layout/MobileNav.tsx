@@ -7,6 +7,7 @@ import {
   Radar,
   TrendingUp,
   Activity,
+  ScrollText,
 } from "lucide-react";
 import styles from "./MobileNav.module.css";
 
@@ -15,7 +16,7 @@ const items = [
   { href: "/trades", label: "Trades", icon: ArrowRightLeft },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
-  { href: "/activity", label: "Feed", icon: Activity },
+  { href: "/logs", label: "Logs", icon: ScrollText },
 ];
 
 export default function MobileNav() {
