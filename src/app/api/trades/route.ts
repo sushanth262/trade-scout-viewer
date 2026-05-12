@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(sp.get("limit") ?? "100"), 500);
     const offset = parseInt(sp.get("offset") ?? "0");
 
-    const conditions: string[] = [];
+    const conditions: string[] = [
+      '(c.kind = "trade" OR NOT IS_DEFINED(c.kind))',
+    ];
     const params: { name: string; value: string | number | boolean }[] = [];
 
     if (ticker) {
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest) {
       params.push({ name: "@to", value: to });
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
     const query = `SELECT * FROM c ${where} ORDER BY c.timestamp DESC OFFSET ${offset} LIMIT ${limit}`;
     const countQuery = `SELECT VALUE COUNT(1) FROM c ${where}`;
 
@@ -69,10 +71,11 @@ export async function POST(req: NextRequest) {
 
     const results = [];
     for (const item of items) {
-      if (!item.id) {
-        item.id = item.trade_id ?? `${item.event}-${item.symbol}-${Date.now()}`;
+      const doc = { ...item, kind: "trade" };
+      if (!doc.id) {
+        doc.id = doc.trade_id ?? `trade-${doc.event ?? "evt"}-${doc.symbol ?? doc.ticker}-${Date.now()}`;
       }
-      const { resource } = await container.items.upsert(item);
+      const { resource } = await container.items.upsert(doc);
       results.push(resource);
     }
 

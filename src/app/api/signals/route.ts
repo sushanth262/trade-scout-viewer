@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(sp.get("limit") ?? "100"), 500);
     const offset = parseInt(sp.get("offset") ?? "0");
 
-    const conditions: string[] = [];
+    const conditions: string[] = ['c.kind = "signal"'];
     const params: { name: string; value: string | number | boolean }[] = [];
 
     if (ticker) {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       params.push({ name: "@confirmed", value: confirmed === "true" });
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
     const query = `SELECT * FROM c ${where} ORDER BY c.screened_at DESC OFFSET ${offset} LIMIT ${limit}`;
     const countQuery = `SELECT VALUE COUNT(1) FROM c ${where}`;
 
@@ -63,8 +63,9 @@ export async function POST(req: NextRequest) {
     const container = await getContainer("signals");
 
     for (const item of items) {
-      if (!item.id) item.id = `${item.ticker}-${item.screened_at}`;
-      await container.items.upsert(item);
+      const doc = { ...item, kind: "signal" };
+      if (!doc.id) doc.id = `signal-${doc.ticker}-${doc.screened_at}`;
+      await container.items.upsert(doc);
     }
 
     return NextResponse.json({ created: items.length });

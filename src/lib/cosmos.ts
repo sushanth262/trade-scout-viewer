@@ -2,8 +2,22 @@ import { CosmosClient, Database, Container } from "@azure/cosmos";
 
 let client: CosmosClient | null = null;
 let database: Database | null = null;
+const containerCache = new Map<string, Container>();
 
 const DB_NAME = "tradescout";
+
+const UNIFIED_CONTAINER = "trades";
+
+const LOGICAL_TO_PHYSICAL: Record<string, string> = {
+  trades: UNIFIED_CONTAINER,
+  signals: UNIFIED_CONTAINER,
+  peaks: "peaks",
+};
+
+export const KIND: Record<string, string> = {
+  trades: "trade",
+  signals: "signal",
+};
 
 function getClient(): CosmosClient {
   if (!client) {
@@ -23,13 +37,18 @@ async function getDatabase(): Promise<Database> {
   return database;
 }
 
-export async function getContainer(name: string): Promise<Container> {
+export async function getContainer(logicalName: string): Promise<Container> {
+  const physical = LOGICAL_TO_PHYSICAL[logicalName] ?? logicalName;
+  const cached = containerCache.get(physical);
+  if (cached) return cached;
+
   const db = await getDatabase();
-  const partitionKey = name === "peaks" ? "/symbol" : "/ticker";
+  const partitionKey = physical === "peaks" ? "/symbol" : "/ticker";
   const { container } = await db.containers.createIfNotExists({
-    id: name,
+    id: physical,
     partitionKey: { paths: [partitionKey] },
   });
+  containerCache.set(physical, container);
   return container;
 }
 

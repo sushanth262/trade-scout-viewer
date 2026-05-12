@@ -22,18 +22,20 @@ async function safeQuery<T>(container: Container | null, query: string, paramete
 
 export async function GET() {
   try {
-    const trades = await safeContainer("trades");
-    const signals = await safeContainer("signals");
+    const container = await safeContainer("trades");
 
     const today = new Date().toISOString().slice(0, 10);
 
+    const TRADE_FILTER = '(c.kind = "trade" OR NOT IS_DEFINED(c.kind))';
+    const SIGNAL_FILTER = 'c.kind = "signal"';
+
     const [totalTradesRes, todayTradesRes, statusBreakdownRes, totalSignalsRes, buySignalsRes] =
       await Promise.all([
-        safeQuery<number>(trades, "SELECT VALUE COUNT(1) FROM c"),
-        safeQuery<number>(trades, "SELECT VALUE COUNT(1) FROM c WHERE STARTSWITH(c.timestamp, @today)", [{ name: "@today", value: today }]),
-        safeQuery<{ status: string; count: number }>(trades, "SELECT c.status, COUNT(1) as count FROM c GROUP BY c.status"),
-        safeQuery<number>(signals, "SELECT VALUE COUNT(1) FROM c"),
-        safeQuery<number>(signals, 'SELECT VALUE COUNT(1) FROM c WHERE c.rating = "BUY"'),
+        safeQuery<number>(container, `SELECT VALUE COUNT(1) FROM c WHERE ${TRADE_FILTER}`),
+        safeQuery<number>(container, `SELECT VALUE COUNT(1) FROM c WHERE ${TRADE_FILTER} AND STARTSWITH(c.timestamp, @today)`, [{ name: "@today", value: today }]),
+        safeQuery<{ status: string; count: number }>(container, `SELECT c.status, COUNT(1) as count FROM c WHERE ${TRADE_FILTER} GROUP BY c.status`),
+        safeQuery<number>(container, `SELECT VALUE COUNT(1) FROM c WHERE ${SIGNAL_FILTER}`),
+        safeQuery<number>(container, `SELECT VALUE COUNT(1) FROM c WHERE ${SIGNAL_FILTER} AND c.rating = "BUY"`),
       ]);
 
     return NextResponse.json({
