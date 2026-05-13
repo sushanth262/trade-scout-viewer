@@ -1,0 +1,53 @@
+{
+  "$schema": "trade-scout-viewer portfolio summary v1",
+  "description": "Schema the AI is asked to fill in for the Transactions Summary page. Edit cautiously \u2014 the UI renders against this shape.",
+  "portfolio_summary": {
+    "report_date": "YYYY-MM-DD",
+    "holdings": [
+      {
+        "ticker": "TICKER",
+        "company_name": "Company Inc.",
+        "purchase_date": "YYYY-MM-DD",
+        "average_cost_basis": 0.00,
+        "quantity": 0,
+        "current_price": 0.00,
+        "recommendation": {
+          "action": "Hold | Buy | Reduce | Sell",
+          "target_price": 0.00,
+          "stop_loss": 0.00,
+          "thesis_status": "Intact | Weakening | Broken"
+        }
+      }
+    ]
+  },
+  "market_context": {
+    "futures_outlook": {
+      "sentiment_score": "Bullish | Neutral-Bullish | Neutral | Neutral-Bearish | Bearish",
+      "drivers": [
+        "One-sentence driver",
+        "Another driver"
+      ]
+    },
+    "political_pulse": {
+      "congressional_focus": "What Congress is debating that may move markets",
+      "policy_impact": "Net read on how policy will affect held positions"
+    },
+    "top_news_brief": [
+      "Headline-style note",
+      "Headline-style note"
+    ]
+  },
+  "today_summary": {
+    "narrative": "Plain-English account of what happened in trading today from market open to now.",
+    "data_pulled_and_filtered": {
+      "sources": [
+        { "name": "Quiver", "raw_count": 0, "after_filter_count": 0 },
+        { "name": "Capitol Trades", "raw_count": 0, "after_filter_count": 0 }
+      ],
+      "filter_notes": "Why some candidates were dropped (e.g., daily cap, already held, low conviction)."
+    },
+    "failures": [
+      { "ticker": "TICKER", "reason": "Alpaca rejection or other error" }
+    ]
+  }
+}
