@@ -9,7 +9,7 @@ import styles from "./page.module.css";
 
 interface Position {
   ticker: string;
-  entry_price: number;
+  entry_price?: number;
   peak?: number;
   stop_level?: number;
   trail_pct?: number;
@@ -17,6 +17,9 @@ interface Position {
   status: "open" | "closed";
   exit_price?: number;
   exit_timestamp?: string;
+  bot?: string;
+  politician?: string;
+  size_label?: string;
 }
 
 export default function PositionsPage() {
@@ -37,17 +40,23 @@ export default function PositionsPage() {
 
       const posMap = new Map<string, Position>();
       for (const t of submittedRes.items) {
+        if (!t.ticker) continue;
         if (!posMap.has(t.ticker)) {
           posMap.set(t.ticker, {
             ticker: t.ticker,
-            entry_price: t.entry_price!,
+            entry_price: t.entry_price,
             status: closedSymbols.has(t.ticker) ? "closed" : "open",
+            bot: t.bot,
+            politician: t.politician,
+            size_label: t.size_label,
           });
         }
       }
 
       for (const s of stopsRes.items) {
-        const pos = posMap.get(s.symbol!);
+        const sym = s.symbol;
+        if (!sym) continue;
+        const pos = posMap.get(sym);
         if (pos) {
           pos.exit_price = s.price;
           pos.peak = s.peak;
@@ -98,8 +107,28 @@ export default function PositionsPage() {
                   <div className={styles.posMetrics}>
                     <div className={styles.posMetric}>
                       <span className={styles.posLabel}>Entry</span>
-                      <span className={styles.posValue}>${p.entry_price.toFixed(2)}</span>
+                      <span className={styles.posValue}>
+                        {p.entry_price != null ? `$${p.entry_price.toFixed(2)}` : "—"}
+                      </span>
                     </div>
+                    {p.size_label && (
+                      <div className={styles.posMetric}>
+                        <span className={styles.posLabel}>Size</span>
+                        <span className={styles.posValue}>{p.size_label}</span>
+                      </div>
+                    )}
+                    {p.bot && (
+                      <div className={styles.posMetric}>
+                        <span className={styles.posLabel}>Bot</span>
+                        <span className={styles.posValue}>{p.bot}</span>
+                      </div>
+                    )}
+                    {p.politician && (
+                      <div className={styles.posMetric}>
+                        <span className={styles.posLabel}>Politician</span>
+                        <span className={styles.posValue}>{p.politician}</span>
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -125,15 +154,21 @@ export default function PositionsPage() {
                     <div className={styles.posMetrics}>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Entry</span>
-                        <span className={styles.posValue}>${p.entry_price.toFixed(2)}</span>
+                        <span className={styles.posValue}>
+                          {p.entry_price != null ? `$${p.entry_price.toFixed(2)}` : "—"}
+                        </span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Exit</span>
-                        <span className={styles.posValue}>${p.exit_price?.toFixed(2) ?? "—"}</span>
+                        <span className={styles.posValue}>
+                          {p.exit_price != null ? `$${p.exit_price.toFixed(2)}` : "—"}
+                        </span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Peak</span>
-                        <span className={styles.posValue}>${p.peak?.toFixed(2) ?? "—"}</span>
+                        <span className={styles.posValue}>
+                          {p.peak != null ? `$${p.peak.toFixed(2)}` : "—"}
+                        </span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>P&L</span>
@@ -144,7 +179,7 @@ export default function PositionsPage() {
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Trail</span>
-                        <span className={styles.posValue}>{p.trail_pct}%</span>
+                        <span className={styles.posValue}>{p.trail_pct != null ? `${p.trail_pct}%` : "—"}</span>
                       </div>
                     </div>
                   </Card>

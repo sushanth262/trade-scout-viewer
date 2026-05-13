@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const conviction = sp.get("conviction");
     const sector = sp.get("sector");
     const confirmed = sp.get("confirmed");
+    const bot = sp.get("bot");
     const limit = Math.min(parseInt(sp.get("limit") ?? "100"), 500);
     const offset = parseInt(sp.get("offset") ?? "0");
 
@@ -35,6 +36,16 @@ export async function GET(req: NextRequest) {
     if (confirmed !== null && confirmed !== undefined) {
       conditions.push("c.confirmed = @confirmed");
       params.push({ name: "@confirmed", value: confirmed === "true" });
+    }
+    if (bot) {
+      // Legacy earnings-trade signals don't have `bot` — treat absence as
+      // "earnings-trade" so the filter still finds them.
+      if (bot === "earnings-trade") {
+        conditions.push('(c.bot = @bot OR NOT IS_DEFINED(c.bot))');
+      } else {
+        conditions.push("c.bot = @bot");
+      }
+      params.push({ name: "@bot", value: bot });
     }
 
     const where = `WHERE ${conditions.join(" AND ")}`;
@@ -110,7 +121,13 @@ export async function POST(req: NextRequest) {
 
     for (const item of items) {
       const doc = { ...item, kind: "signal" };
-      if (!doc.id) doc.id = `signal-${doc.ticker}-${doc.screened_at}`;
+      if (!doc.id) {
+        // Include bot in the id so copytrade and earnings-trade signals
+        // never overwrite each other for the same ticker/timestamp.
+        doc.id = doc.bot
+          ? `signal-${doc.bot}-${doc.ticker}-${doc.screened_at}`
+          : `signal-${doc.ticker}-${doc.screened_at}`;
+      }
       await container.items.upsert(doc);
     }
 

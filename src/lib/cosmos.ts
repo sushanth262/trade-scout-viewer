@@ -110,26 +110,32 @@ export interface Signal {
   id: string;
   ticker: string;
   rating: string;
-  earnings_date: string;
-  eps_estimate: number | null;
-  eps_growth_3yr: number | null;
-  insider_buying: number;
-  insider_sent: string;
-  politicians: string[];
-  conviction: string;
-  confirmed: boolean;
-  sources: string[];
-  avg_lag_days: number | null;
-  chambers: string[];
-  committee: string;
-  freshest_tx: string;
-  pc_ratio: number | null;
-  options_sent: string;
-  social_sent: string;
-  sent_source: string;
-  entry_price: number;
-  sector: string;
+  // Optional fields — earnings-trade signals carry the full schema;
+  // copytrade signals are a lighter subset, so most of these may be absent.
+  earnings_date?: string;
+  eps_estimate?: number | null;
+  eps_growth_3yr?: number | null;
+  insider_buying?: number;
+  insider_sent?: string;
+  politicians?: string[];
+  conviction?: string;
+  confirmed?: boolean;
+  sources?: string[];
+  avg_lag_days?: number | null;
+  chambers?: string[];
+  committee?: string;
+  freshest_tx?: string;
+  pc_ratio?: number | null;
+  options_sent?: string;
+  social_sent?: string;
+  sent_source?: string;
+  entry_price?: number;
+  sector?: string;
   screened_at: string;
+  bot?: string;
+  rating_reason?: string;
+  size_label?: string;
+  filing_age_days?: number | null;
 }
 
 export interface PeakData {

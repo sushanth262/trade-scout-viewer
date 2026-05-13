@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Card from "@/components/ui/Card";
+import InfoTip from "@/components/ui/InfoTip";
 import { fetchApi } from "@/lib/api";
 import { RefreshCw, Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
 import {
@@ -271,7 +272,10 @@ export default function RunsPage() {
 
       <Card className={styles.chartCard}>
         <div className={styles.chartHeader}>
-          <h2 className={styles.sectionTitle}>Run Timeline</h2>
+          <h2 className={styles.sectionTitle}>
+            Run Timeline
+            <InfoTip text="Each dot is one cron-scheduled run of a bot. Green = the run finished cleanly (the bot logged 'Cycle done'); red = the bot exited without finishing. Copytrade runs on the lower track, earnings-trade on the upper track. Failures usually mean a network issue or an unhandled exception — check Bot Logs for the trace." />
+          </h2>
           <span className={styles.legendHint}>
             <span className={styles.dot} style={{ background: SUCCESS_COLOR }} /> success
             <span className={styles.dot} style={{ background: FAIL_COLOR, marginLeft: 12 }} /> fail
@@ -340,7 +344,10 @@ export default function RunsPage() {
 
       <Card className={styles.chartCard}>
         <div className={styles.chartHeader}>
-          <h2 className={styles.sectionTitle}>Trade Outcomes & Source Pulls</h2>
+          <h2 className={styles.sectionTitle}>
+            Trade Outcomes & Source Pulls
+            <InfoTip text="Aggregate counts across all runs in the selected window. Submitted = orders sent to Alpaca. Watched = picks the bot saw but didn't trade (low conviction). Failed = Alpaca rejected the order. Screened/BUY-rated apply to earnings-trade only. Quiver / Capitol Trades = how many tickers were pulled from each source feed. Confirmed = tickers that appeared in BOTH sources (highest conviction)." />
+          </h2>
           <span className={styles.legendHint}>
             Aggregated over the selected window
           </span>

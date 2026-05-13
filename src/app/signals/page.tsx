@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import styles from "./page.module.css";
 
 const filters = [
+  { key: "bot", label: "Bot", options: ["copytrade", "earnings-trade"] },
   { key: "rating", label: "Rating", options: ["BUY", "WATCH"] },
   { key: "conviction", label: "Conviction", options: ["VERY HIGH", "HIGH", "MEDIUM", "LOW"] },
   { key: "confirmed", label: "Confirmed", options: ["true", "false"] },
@@ -20,6 +21,12 @@ const columns: Column<Signal>[] = [
     header: "Screened",
     width: "150px",
     render: (r) => r.screened_at ? format(new Date(r.screened_at), "MMM dd, HH:mm") : "—",
+  },
+  {
+    key: "bot",
+    header: "Bot",
+    width: "120px",
+    render: (r) => <span className={styles.bot}>{r.bot ?? "earnings-trade"}</span>,
   },
   {
     key: "ticker",
@@ -37,37 +44,38 @@ const columns: Column<Signal>[] = [
     key: "conviction",
     header: "Conviction",
     width: "110px",
-    render: (r) => <StatusChip status={r.conviction} />,
+    render: (r) => (r.conviction ? <StatusChip status={r.conviction} /> : "—"),
   },
   {
     key: "entry_price",
     header: "Price",
     width: "90px",
-    render: (r) => `$${r.entry_price.toFixed(2)}`,
+    render: (r) => (r.entry_price != null ? `$${r.entry_price.toFixed(2)}` : "—"),
   },
   {
     key: "earnings_date",
     header: "Earnings",
     width: "100px",
-    render: (r) => r.earnings_date,
+    render: (r) => r.earnings_date ?? "—",
   },
   {
     key: "insider_buying",
     header: "Insider $",
     width: "100px",
-    render: (r) => `$${(r.insider_buying / 1000).toFixed(0)}K`,
+    render: (r) =>
+      r.insider_buying != null ? `$${(r.insider_buying / 1000).toFixed(0)}K` : "—",
   },
   {
     key: "insider_sent",
     header: "Insider",
     width: "90px",
-    render: (r) => <StatusChip status={r.insider_sent} />,
+    render: (r) => (r.insider_sent ? <StatusChip status={r.insider_sent} /> : "—"),
   },
   {
     key: "options_sent",
     header: "Options",
     width: "90px",
-    render: (r) => <StatusChip status={r.options_sent} />,
+    render: (r) => (r.options_sent ? <StatusChip status={r.options_sent} /> : "—"),
   },
   {
     key: "confirmed",
@@ -83,7 +91,7 @@ const columns: Column<Signal>[] = [
     key: "sector",
     header: "Sector",
     width: "110px",
-    render: (r) => r.sector,
+    render: (r) => r.sector ?? "—",
   },
   {
     key: "politicians",

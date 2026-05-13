@@ -26,6 +26,8 @@
   color: var(--text-primary);
   margin-bottom: 14px;
   letter-spacing: -0.2px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .breakdownCard, .recentCard { padding: 20px; }
