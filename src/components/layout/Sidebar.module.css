@@ -13,29 +13,44 @@
 
 .logoWrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 0 8px 24px;
+  gap: 12px;
+  padding: 4px 8px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
   margin-bottom: 16px;
 }
 
 .logoBg {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  box-shadow: 0 2px 10px rgba(15,10,51,0.35);
 }
 
-.appName {
-  font-size: 15px;
-  font-weight: 700;
-  color: white;
-  letter-spacing: -0.3px;
+.tagline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+}
+
+.taglineWord {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+
+.taglineDot {
+  font-size: 11px;
+  color: #D3A85A;
+  line-height: 1;
 }
 
 .nav {

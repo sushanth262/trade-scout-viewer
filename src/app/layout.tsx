@@ -7,7 +7,7 @@ import styles from "./layout.module.css";
 export const metadata: Metadata = {
   title: "TradeHawk | Trade Scout Viewer",
   description: "Trade task and transaction log viewer for earnings-trade bot",
-  icons: { icon: "/icon.png" },
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

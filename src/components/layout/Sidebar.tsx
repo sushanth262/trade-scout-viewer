@@ -29,9 +29,15 @@ export default function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logoWrap}>
         <div className={styles.logoBg}>
-          <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.png`} alt="TradeHawk" width={32} height={32} unoptimized />
+          <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`} alt="TradeHawk" width={40} height={40} unoptimized />
         </div>
-        <span className={styles.appName}>TradeHawk</span>
+        <div className={styles.tagline}>
+          <span className={styles.taglineWord}>Track</span>
+          <span className={styles.taglineDot}>·</span>
+          <span className={styles.taglineWord}>Analyze</span>
+          <span className={styles.taglineDot}>·</span>
+          <span className={styles.taglineWord}>Position</span>
+        </div>
       </div>
 
       <nav className={styles.nav}>
