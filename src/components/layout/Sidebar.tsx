@@ -29,7 +29,7 @@ export default function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logoWrap}>
         <div className={styles.logoBg}>
-          <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`} alt="TradeHawk" width={40} height={40} unoptimized />
+          <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`} alt="TradeHawk" width={120} height={120} unoptimized />
         </div>
         <div className={styles.tagline}>
           <span className={styles.taglineWord}>Track</span>
