@@ -145,3 +145,23 @@ export interface PeakData {
   trail_pct: number;
   updated_at: string;
 }
+
+// Live snapshot of an open position, written by monitor.py every 5 minutes.
+// One row per (bot, ticker); upserted on each monitor tick. Stored in the
+// `trades` container with kind="position_state" and id="position-{bot}-{ticker}".
+export interface PositionState {
+  id?: string;
+  kind?: "position_state";
+  ticker: string;
+  bot: string;
+  qty?: string;
+  entry_price?: number | null;
+  current_price?: number;
+  peak?: number;
+  stop_level?: number;
+  trail_pct?: number;
+  current_gain_pct?: number;
+  qty_available?: number;
+  updated_at?: string;
+  source?: string;
+}
