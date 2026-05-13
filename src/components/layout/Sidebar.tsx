@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Activity,
   ScrollText,
+  LineChart as LineChartIcon,
   Settings,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
   { href: "/activity", label: "Activity Feed", icon: Activity },
+  { href: "/runs", label: "Job Runs", icon: LineChartIcon },
   { href: "/logs", label: "Bot Logs", icon: ScrollText },
 ];
 

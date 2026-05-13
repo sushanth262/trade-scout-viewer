@@ -10,6 +10,8 @@ interface LogResponse {
   file: string;
   sizeBytes: number;
   totalLines: number;
+  days: number;
+  sources?: { local: number; cosmos: number };
   lines: string[];
 }
 
@@ -20,6 +22,7 @@ const LOG_TABS = [
 ];
 
 const LEVELS = ["", "INFO", "WARNING", "ERROR"];
+const DAY_OPTIONS = [1, 3, 7];
 
 function parseLevel(line: string): string {
   if (/\bERROR\b/.test(line)) return "ERROR";
@@ -54,13 +57,18 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState("");
+  const [days, setDays] = useState(3);
   const [autoScroll, setAutoScroll] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { name: activeLog, tail: "500" };
+      const params: Record<string, string> = {
+        name: activeLog,
+        days: String(days),
+        tail: "2000",
+      };
       if (level) params.level = level;
       if (search) params.search = search;
       const res = await fetchApi<LogResponse>("/api/logs", params);
@@ -70,7 +78,7 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeLog, level, search]);
+  }, [activeLog, level, search, days]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -84,7 +92,7 @@ export default function LogsPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Bot Logs</h1>
-        <p className={styles.subtitle}>Live log viewer for trading bots and Cosmos sync</p>
+        <p className={styles.subtitle}>Last {days} day{days === 1 ? "" : "s"} · local file + Cosmos sync</p>
       </div>
 
       <div className={styles.controls}>
@@ -96,6 +104,19 @@ export default function LogsPage() {
               onClick={() => { setActiveLog(t.key); setAutoScroll(true); }}
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.levelGroup}>
+          {DAY_OPTIONS.map((d) => (
+            <button
+              key={d}
+              className={`${styles.levelBtn} ${days === d ? styles.levelActive : ""}`}
+              onClick={() => setDays(d)}
+              title={`Show last ${d} day${d === 1 ? "" : "s"}`}
+            >
+              {d}d
             </button>
           ))}
         </div>
@@ -129,8 +150,13 @@ export default function LogsPage() {
         <div className={styles.meta}>
           <span><FileText size={11} /> {data.file}</span>
           <span>{formatSize(data.sizeBytes)}</span>
-          <span>{data.totalLines} total lines</span>
-          <span>Showing last {data.lines.length}</span>
+          <span>{data.totalLines} lines in window</span>
+          {data.sources && (
+            <span>
+              local {data.sources.local} · cosmos {data.sources.cosmos}
+            </span>
+          )}
+          <span>Showing {data.lines.length}</span>
           <label style={{ marginLeft: "auto", cursor: "pointer" }}>
             <input
               type="checkbox"

@@ -3,9 +3,10 @@ import { useEffect, useState, useCallback } from "react";
 import FilterBar from "@/components/ui/FilterBar";
 import DataTable, { Column } from "@/components/ui/DataTable";
 import StatusChip from "@/components/ui/StatusChip";
+import BotChip from "@/components/ui/BotChip";
 import { fetchApi, PaginatedResponse } from "@/lib/api";
 import { TradeEvent } from "@/lib/cosmos";
-import { format } from "date-fns";
+import { formatLocalTime, formatLocalTimeLong } from "@/lib/time";
 import styles from "./page.module.css";
 
 const STATUS_OPTIONS = [
@@ -23,9 +24,11 @@ const filters = [
 const columns: Column<TradeEvent>[] = [
   {
     key: "timestamp",
-    header: "Time",
-    width: "160px",
-    render: (r) => r.timestamp ? format(new Date(r.timestamp), "MMM dd, HH:mm:ss") : "—",
+    header: "Time (local)",
+    width: "200px",
+    render: (r) => r.timestamp
+      ? <span title={formatLocalTimeLong(r.timestamp) + ` · UTC ${r.timestamp}`}>{formatLocalTime(r.timestamp)}</span>
+      : "—",
   },
   {
     key: "ticker",
@@ -34,10 +37,25 @@ const columns: Column<TradeEvent>[] = [
     render: (r) => <span className={styles.ticker}>{r.ticker ?? r.symbol}</span>,
   },
   {
+    key: "politician",
+    header: "Politician",
+    width: "170px",
+    render: (r) => {
+      const p = (r as TradeEvent & { politician?: string }).politician;
+      return p ? <span className={styles.politician}>{p}</span> : "—";
+    },
+  },
+  {
     key: "event",
     header: "Event",
     width: "120px",
     render: (r) => r.event === "stop_triggered" ? "Stop Triggered" : "Trade Execution",
+  },
+  {
+    key: "bot",
+    header: "Bot",
+    width: "150px",
+    render: (r) => <BotChip bot={r.bot ?? null} />,
   },
   {
     key: "status",

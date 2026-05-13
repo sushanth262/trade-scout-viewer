@@ -6,8 +6,8 @@ import {
   ArrowRightLeft,
   Radar,
   TrendingUp,
-  Activity,
   ScrollText,
+  LineChart as LineChartIcon,
 } from "lucide-react";
 import styles from "./MobileNav.module.css";
 
@@ -16,6 +16,7 @@ const items = [
   { href: "/trades", label: "Trades", icon: ArrowRightLeft },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
+  { href: "/runs", label: "Runs", icon: LineChartIcon },
   { href: "/logs", label: "Logs", icon: ScrollText },
 ];
 

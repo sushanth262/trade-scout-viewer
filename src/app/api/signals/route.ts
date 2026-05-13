@@ -54,6 +54,52 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  if (!isLocalRequest(req)) return rejectExternal();
+  try {
+    const sp = req.nextUrl.searchParams;
+    const days = Math.max(1, parseFloat(sp.get("olderThanDays") ?? "30"));
+    const cutoffIso = new Date(Date.now() - days * 86400 * 1000).toISOString();
+
+    const container = await getContainer("signals");
+    let deleted = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    // Signals carry their own `screened_at` timestamp (not `timestamp`).
+    const query = {
+      query:
+        'SELECT c.id, c.ticker FROM c ' +
+        'WHERE c.kind = "signal" AND IS_DEFINED(c.screened_at) AND c.screened_at < @cutoff',
+      parameters: [{ name: "@cutoff", value: cutoffIso }],
+    };
+    const iterator = container.items.query<{ id: string; ticker: string }>(
+      query,
+      { maxItemCount: 200 },
+    );
+    while (iterator.hasMoreResults()) {
+      const { resources } = await iterator.fetchNext();
+      for (const r of resources) {
+        if (!r.ticker) { skipped++; continue; }
+        try {
+          await container.item(r.id, r.ticker).delete();
+          deleted++;
+        } catch (e) {
+          errors.push(`${r.id}: ${String(e).slice(0, 80)}`);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      deleted, skipped, cutoffIso,
+      errors: errors.slice(0, 10),
+    });
+  } catch (err) {
+    console.error("signals DELETE error:", err);
+    return NextResponse.json({ error: "Failed to prune signals" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!isLocalRequest(req)) return rejectExternal();
 

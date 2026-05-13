@@ -1,0 +1,45 @@
+import styles from "./BotChip.module.css";
+
+type BotKey = "copytrade" | "earnings-trade" | "earnings" | string | null | undefined;
+
+const palette: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  copytrade: {
+    bg: "#EEF2FF",
+    text: "#1B2B65",
+    border: "#C7D2FE",
+    label: "copytrade",
+  },
+  "earnings-trade": {
+    bg: "#FFFBEB",
+    text: "#B45309",
+    border: "#FDE68A",
+    label: "earnings-trade",
+  },
+  earnings: {
+    bg: "#FFFBEB",
+    text: "#B45309",
+    border: "#FDE68A",
+    label: "earnings-trade",
+  },
+};
+
+export default function BotChip({ bot }: { bot: BotKey }) {
+  if (!bot) {
+    return <span className={styles.empty}>—</span>;
+  }
+  const p = palette[bot] ?? {
+    bg: "#F5F5F5",
+    text: "#737373",
+    border: "#E5E7EB",
+    label: bot,
+  };
+  return (
+    <span
+      className={styles.chip}
+      style={{ background: p.bg, color: p.text, borderColor: p.border }}
+    >
+      <span className={styles.dot} style={{ background: p.text }} />
+      {p.label}
+    </span>
+  );
+}

@@ -61,6 +61,53 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  if (!isLocalRequest(req)) return rejectExternal();
+  try {
+    const sp = req.nextUrl.searchParams;
+    const days = Math.max(1, parseFloat(sp.get("olderThanDays") ?? "7"));
+    const cutoffIso = new Date(Date.now() - days * 86400 * 1000).toISOString();
+
+    const container = await getContainer("trades");
+    let deleted = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    // Prune both `kind="trade"` and legacy rows that have no `kind` field.
+    // We do NOT touch signals (kind="signal") or loglines (kind="logline").
+    const query = {
+      query:
+        'SELECT c.id, c.ticker FROM c ' +
+        'WHERE (c.kind = "trade" OR NOT IS_DEFINED(c.kind)) AND IS_DEFINED(c.timestamp) AND c.timestamp < @cutoff',
+      parameters: [{ name: "@cutoff", value: cutoffIso }],
+    };
+    const iterator = container.items.query<{ id: string; ticker: string }>(
+      query,
+      { maxItemCount: 200 },
+    );
+    while (iterator.hasMoreResults()) {
+      const { resources } = await iterator.fetchNext();
+      for (const r of resources) {
+        if (!r.ticker) { skipped++; continue; } // can't delete without partition key
+        try {
+          await container.item(r.id, r.ticker).delete();
+          deleted++;
+        } catch (e) {
+          errors.push(`${r.id}: ${String(e).slice(0, 80)}`);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      deleted, skipped, cutoffIso,
+      errors: errors.slice(0, 10),
+    });
+  } catch (err) {
+    console.error("trades DELETE error:", err);
+    return NextResponse.json({ error: "Failed to prune trades" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!isLocalRequest(req)) return rejectExternal();
 

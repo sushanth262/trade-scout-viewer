@@ -2,6 +2,17 @@
 .title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 .subtitle { font-size: 12px; color: var(--text-secondary); margin-top: -12px; }
 .ticker { font-weight: 700; color: var(--brand-500); }
+.politician {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  max-width: 160px;
+  vertical-align: middle;
+}
 
 .pagination {
   display: flex;

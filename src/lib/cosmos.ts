@@ -8,15 +8,27 @@ const DB_NAME = "tradescout";
 
 const UNIFIED_CONTAINER = "trades";
 
+// All three logical entities (trades, signals, log lines) live in the single
+// `trades` container — Cosmos free tier caps total throughput at 1000 RU/s so
+// adding more containers is not feasible. They are differentiated by `kind`
+// and partitioned on the existing `/ticker` path. For log lines we set
+// `ticker = <bot>` so partition cardinality stays low and ordered by bot.
 const LOGICAL_TO_PHYSICAL: Record<string, string> = {
-  trades: UNIFIED_CONTAINER,
+  trades:  UNIFIED_CONTAINER,
   signals: UNIFIED_CONTAINER,
-  peaks: "peaks",
+  logs:    UNIFIED_CONTAINER,
+  peaks:   "peaks",
+};
+
+const PARTITION_KEY: Record<string, string> = {
+  [UNIFIED_CONTAINER]: "/ticker",
+  peaks: "/symbol",
 };
 
 export const KIND: Record<string, string> = {
-  trades: "trade",
+  trades:  "trade",
   signals: "signal",
+  logs:    "logline",
 };
 
 function getClient(): CosmosClient {
@@ -43,13 +55,24 @@ export async function getContainer(logicalName: string): Promise<Container> {
   if (cached) return cached;
 
   const db = await getDatabase();
-  const partitionKey = physical === "peaks" ? "/symbol" : "/ticker";
+  const partitionKey = PARTITION_KEY[physical] ?? "/ticker";
   const { container } = await db.containers.createIfNotExists({
     id: physical,
     partitionKey: { paths: [partitionKey] },
   });
   containerCache.set(physical, container);
   return container;
+}
+
+export interface LogEntry {
+  id: string;
+  kind: "logline";
+  ticker: string;     // partition value — set to bot name
+  bot: string;        // "copytrade" | "earnings-trade" | "cosmos"
+  timestamp: string;  // ISO8601
+  level: string;      // INFO | WARNING | ERROR | DEBUG | ""
+  line: string;       // raw log line (trimmed)
+  ingestedAt: string;
 }
 
 export interface TradeEvent {
@@ -71,6 +94,11 @@ export interface TradeEvent {
   stop_level?: number;
   trail_pct?: number;
   source?: string;
+  bot?: string;
+  politician?: string;
+  filing_date?: string;
+  trade_date?: string;
+  sector?: string;
   action?: string;
   asset_type?: string;
   size_label?: string;
