@@ -61,6 +61,15 @@ interface TimelineRow {
   timestamp: string;
 }
 
+interface CacheInfo {
+  hit: boolean;
+  cached_at: string;
+  age_ms: number;
+  ttl_ms: number;
+  expires_at: string;
+  market_open: boolean;
+}
+
 interface SummaryResponse {
   provider: Provider;
   bot: BotScope;
@@ -69,6 +78,7 @@ interface SummaryResponse {
   counts?: { trades_today: number; signals_today: number; open_positions: number; failures: number };
   timeline?: TimelineRow[];
   result: SummaryResult;
+  cache?: CacheInfo;
 }
 
 const COPYTRADE_COLOR = "#1B2B65";
@@ -111,7 +121,7 @@ export default function SummaryPage() {
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (opts?: { force?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
@@ -119,7 +129,7 @@ export default function SummaryPage() {
       const res = await fetch(`${basePath}/api/summary`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, bot }),
+        body: JSON.stringify({ provider, bot, force: opts?.force === true }),
         cache: "no-store",
       });
       if (!res.ok) {
@@ -134,6 +144,15 @@ export default function SummaryPage() {
       setLoading(false);
     }
   }, [provider, bot]);
+
+  function fmtDuration(ms: number): string {
+    if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+    const mins = Math.round(ms / 60_000);
+    if (mins < 60) return `${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return rem ? `${hrs}h ${rem}m` : `${hrs}h`;
+  }
 
   const timelineSeries = useMemo(() => {
     if (!data?.timeline) return { copytrade: [], earnings: [] };
@@ -217,7 +236,7 @@ export default function SummaryPage() {
           </div>
         </div>
 
-        <button className={styles.generateBtn} onClick={generate} disabled={loading}>
+        <button className={styles.generateBtn} onClick={() => generate()} disabled={loading}>
           <RefreshCw size={14} className={loading ? styles.spin : ""} />
           {loading ? "Generating..." : "Generate Summary"}
         </button>
@@ -230,6 +249,42 @@ export default function SummaryPage() {
           <span className={styles.metaPill}>
             <Sparkle size={11} /> {data.provider} · {data.model}
           </span>
+          {data.cache && (
+            <span
+              className={styles.metaPill}
+              style={{
+                background: data.cache.hit ? "#FFFBEB" : "#F0FDF4",
+                color: data.cache.hit ? "var(--warning-700)" : "var(--success-700)",
+              }}
+              title={`Cached at ${data.cache.cached_at}. TTL ${fmtDuration(data.cache.ttl_ms)} (${data.cache.market_open ? "trading hours" : "off hours"}). Expires ${data.cache.expires_at}.`}
+            >
+              {data.cache.hit
+                ? `Cached · ${fmtDuration(data.cache.age_ms)} old · expires in ${fmtDuration(Math.max(0, data.cache.ttl_ms - data.cache.age_ms))}`
+                : `Fresh · cached for ${fmtDuration(data.cache.ttl_ms)} (${data.cache.market_open ? "trading hours" : "off hours"})`}
+            </span>
+          )}
+          {data.cache?.hit && (
+            <button
+              type="button"
+              onClick={() => generate({ force: true })}
+              disabled={loading}
+              style={{
+                background: "transparent",
+                border: "1px solid var(--border-medium)",
+                borderRadius: 6,
+                padding: "3px 10px",
+                fontSize: 11,
+                cursor: "pointer",
+                color: "var(--text-secondary)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+              title="Bypass the cache and call the AI again now"
+            >
+              <RefreshCw size={11} className={loading ? styles.spin : ""} /> Force refresh
+            </button>
+          )}
           {data.counts && (
             <>
               <span><strong>{data.counts.trades_today}</strong> trade events today</span>

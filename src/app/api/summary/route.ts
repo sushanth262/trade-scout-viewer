@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getContainer, TradeEvent, Signal, PositionState } from "@/lib/cosmos";
 import portfolioTemplate from "@/assets/portfolio_template.json";
+import { isLocalRequest, rejectExternal } from "@/lib/localhost-only";
 
 /**
  * Builds today's transaction context from Cosmos, then asks the chosen LLM
@@ -18,11 +19,68 @@ type BotScope = "copytrade" | "earnings-trade" | "combined";
 interface SummaryRequest {
   provider: Provider;
   bot: BotScope;
+  force?: boolean;  // bypass cache
 }
 
 // Default cheap/fast models. Override via env if needed.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+// ── In-memory cache ──────────────────────────────────────────────────────────
+// The AI calls are slow (2-10s) and cost real money / quota. Cache by
+// (provider, bot) with a TTL that flexes by trading hours:
+//   - 2h while the market is open (NYSE: 09:30-16:00 ET, Mon-Fri)
+//   - 6h after-hours / weekends
+// The cache lives in the Node process, so it survives between requests but is
+// cleared on container restart — that's fine, the cache is just an optimization.
+// The UI exposes a "Force refresh" path via {force:true} to bypass.
+
+const TTL_TRADING_MS  = 2 * 60 * 60 * 1000;
+const TTL_OFFHOURS_MS = 6 * 60 * 60 * 1000;
+
+interface CacheEntry {
+  cached_at: number;
+  ttl_ms: number;
+  // The full response body that was originally returned to a caller, minus
+  // the cache-status fields we'll overlay on the way out.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any;
+}
+
+// Module-scope so it survives across requests within the same Node process.
+const summaryCache = new Map<string, CacheEntry>();
+
+function cacheKey(provider: Provider, bot: BotScope): string {
+  return `${provider}:${bot}`;
+}
+
+function isMarketOpenNow(): boolean {
+  // NYSE regular session 09:30-16:00 America/New_York, Mon-Fri.
+  // We use Intl.DateTimeFormat to read the time in ET regardless of where
+  // the container is running.
+  try {
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(new Date());
+    const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+    const minutesEt = hour * 60 + minute;
+    const isWeekday = !["Sat", "Sun"].includes(weekday);
+    return isWeekday && minutesEt >= 9 * 60 + 30 && minutesEt < 16 * 60;
+  } catch {
+    return false;
+  }
+}
+
+function ttlForNow(): number {
+  return isMarketOpenNow() ? TTL_TRADING_MS : TTL_OFFHOURS_MS;
+}
 
 const TRADE_FILTER = '(c.kind = "trade" OR NOT IS_DEFINED(c.kind))';
 const SIGNAL_FILTER = 'c.kind = "signal"';
@@ -232,12 +290,37 @@ export async function POST(req: NextRequest) {
 
   const provider = body.provider;
   const bot = body.bot;
+  const force = body.force === true;
 
   if (!["openai", "gemini"].includes(provider)) {
     return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
   }
   if (!["copytrade", "earnings-trade", "combined"].includes(bot)) {
     return NextResponse.json({ error: `Unknown bot scope: ${bot}` }, { status: 400 });
+  }
+
+  // ── Cache check ──────────────────────────────────────────────────────────
+  const key = cacheKey(provider, bot);
+  if (!force) {
+    const hit = summaryCache.get(key);
+    if (hit) {
+      const age_ms = Date.now() - hit.cached_at;
+      if (age_ms < hit.ttl_ms) {
+        return NextResponse.json({
+          ...hit.payload,
+          cache: {
+            hit: true,
+            cached_at: new Date(hit.cached_at).toISOString(),
+            age_ms,
+            ttl_ms: hit.ttl_ms,
+            expires_at: new Date(hit.cached_at + hit.ttl_ms).toISOString(),
+            market_open: isMarketOpenNow(),
+          },
+        });
+      }
+      // Expired — drop and continue to a fresh fetch.
+      summaryCache.delete(key);
+    }
   }
 
   // Surface a clean error if the key isn't configured rather than letting the
@@ -256,7 +339,7 @@ export async function POST(req: NextRequest) {
     // and gives a deterministic "nothing happened today" response.
     const isEmpty = ctx.trades.length === 0 && ctx.signals.length === 0 && ctx.positions.length === 0;
     if (isEmpty) {
-      return NextResponse.json({
+      const payload = {
         provider,
         bot,
         model: provider === "openai" ? OPENAI_MODEL : GEMINI_MODEL,
@@ -274,6 +357,14 @@ export async function POST(req: NextRequest) {
             top_news_brief: [],
           },
         },
+      };
+      // Empty-day responses get cached too — re-running the bot doesn't
+      // change the answer until a cycle fills the data.
+      const ttl_ms = ttlForNow();
+      summaryCache.set(key, { cached_at: Date.now(), ttl_ms, payload });
+      return NextResponse.json({
+        ...payload,
+        cache: { hit: false, cached_at: new Date().toISOString(), age_ms: 0, ttl_ms, expires_at: new Date(Date.now() + ttl_ms).toISOString(), market_open: isMarketOpenNow() },
       });
     }
 
@@ -291,7 +382,7 @@ export async function POST(req: NextRequest) {
       catch { parsed = { _raw: raw }; }
     }
 
-    return NextResponse.json({
+    const payload = {
       provider,
       bot,
       model: provider === "openai" ? OPENAI_MODEL : GEMINI_MODEL,
@@ -313,10 +404,73 @@ export async function POST(req: NextRequest) {
         timestamp: t.timestamp,
       })),
       result: parsed,
+    };
+    const ttl_ms = ttlForNow();
+    summaryCache.set(key, { cached_at: Date.now(), ttl_ms, payload });
+    return NextResponse.json({
+      ...payload,
+      cache: {
+        hit: false,
+        cached_at: new Date().toISOString(),
+        age_ms: 0,
+        ttl_ms,
+        expires_at: new Date(Date.now() + ttl_ms).toISOString(),
+        market_open: isMarketOpenNow(),
+      },
     });
   } catch (err) {
     console.error("summary API error:", err);
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: `Summary failed: ${msg}` }, { status: 500 });
   }
+}
+
+// GET — inspect the cache (no auth needed; no secrets exposed).
+export async function GET() {
+  const now = Date.now();
+  const entries = Array.from(summaryCache.entries()).map(([k, v]) => {
+    const age_ms = now - v.cached_at;
+    return {
+      key: k,
+      cached_at: new Date(v.cached_at).toISOString(),
+      age_ms,
+      ttl_ms: v.ttl_ms,
+      expired: age_ms >= v.ttl_ms,
+      expires_at: new Date(v.cached_at + v.ttl_ms).toISOString(),
+    };
+  });
+  return NextResponse.json({
+    entries,
+    market_open: isMarketOpenNow(),
+    current_ttl_ms: ttlForNow(),
+  });
+}
+
+// DELETE — purge the cache. Locked to local callers (VM-internal or browser
+// via the viewer proxy) since it's a maintenance endpoint.
+export async function DELETE(req: NextRequest) {
+  if (!isLocalRequest(req)) return rejectExternal();
+  const sp = req.nextUrl.searchParams;
+  const provider = sp.get("provider") as Provider | null;
+  const bot = sp.get("bot") as BotScope | null;
+
+  if (!provider && !bot) {
+    const n = summaryCache.size;
+    summaryCache.clear();
+    return NextResponse.json({ cleared: n });
+  }
+  if (provider && bot) {
+    const k = cacheKey(provider, bot);
+    const had = summaryCache.delete(k);
+    return NextResponse.json({ cleared: had ? 1 : 0, key: k });
+  }
+  // Partial filter — purge all matching entries.
+  let removed = 0;
+  for (const k of Array.from(summaryCache.keys())) {
+    const [p, b] = k.split(":");
+    if ((provider && p !== provider) || (bot && b !== bot)) continue;
+    summaryCache.delete(k);
+    removed++;
+  }
+  return NextResponse.json({ cleared: removed });
 }
