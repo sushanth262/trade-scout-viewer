@@ -8,25 +8,31 @@
   Uses $env:GITHUB_TOKEN for GHCR login (not written into the container env file).
   Overrides ALERT_BASE_URL for production approve links unless -SkipAlertBaseUrlOverride.
 
-  Requires Docker Desktop (or another engine) running locally for build/push.
+  Requires Docker Desktop (or another engine) running locally for build/push (unless -SkipBuildPush).
 
 .PARAMETER AlertBaseUrl
   Public base URL for email approval links (default matches DEPLOY.md).
+
+.PARAMETER SkipBuildPush
+  Only pull/restart the container on the VM (image must already be on GHCR).
 #>
 param(
   [string]$ResourceGroup = "auravm",
   [string]$VmName = "aura",
   [string]$AlertBaseUrl = "http://aura-rca.northcentralus.cloudapp.azure.com:3001",
-  [switch]$SkipAlertBaseUrlOverride
+  [switch]$SkipAlertBaseUrlOverride,
+  [switch]$SkipBuildPush
 )
 
 $ErrorActionPreference = "Stop"
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-  Write-Error "docker CLI not found. Install Docker Desktop and ensure it is on PATH."
-}
-docker info 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  Write-Error "Docker engine is not reachable. Start Docker Desktop (Linux engine) and retry."
+if (-not $SkipBuildPush) {
+  if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Error "docker CLI not found. Install Docker Desktop and ensure it is on PATH."
+  }
+  docker info 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Docker engine is not reachable. Start Docker Desktop (Linux engine) and retry."
+  }
 }
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $Root
@@ -67,24 +73,10 @@ $sb = New-Object System.Text.StringBuilder
 foreach ($key in $envPairs.Keys) {
   if ($key -eq "GITHUB_TOKEN") { continue }
   $val = $envPairs[$key] -replace "`r`n", " " -replace "`n", " "
-  [void]$sb.AppendLine("${key}=${val}")
+  [void]$sb.Append("${key}=${val}`n")
 }
 $envFileText = $sb.ToString()
 $envFileB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($envFileText))
-
-Write-Host "=== docker build ===" -ForegroundColor Cyan
-docker build `
-  --build-arg COSMOS_ENDPOINT="$($envPairs['COSMOS_ENDPOINT'])" `
-  --build-arg COSMOS_KEY="$($envPairs['COSMOS_KEY'])" `
-  -t ghcr.io/sushanth262/trade-scout-viewer:latest `
-  $Root
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-Write-Host "=== docker login & push ===" -ForegroundColor Cyan
-$env:GITHUB_TOKEN | docker login ghcr.io -u sushanth262 --password-stdin
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-docker push ghcr.io/sushanth262/trade-scout-viewer:latest
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $ghB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($env:GITHUB_TOKEN))
 
@@ -104,8 +96,27 @@ shred -u /tmp/trade-scout-viewer.env 2>/dev/null || rm -f /tmp/trade-scout-viewe
 docker ps --filter name=trade-scout-viewer
 echo DONE
 "@
+$remote = $remote -replace "`r`n", "`n" -replace "`r", "`n"
 
 $b64script = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remote))
+
+if (-not $SkipBuildPush) {
+  Write-Host "=== docker build ===" -ForegroundColor Cyan
+  docker build `
+    --build-arg COSMOS_ENDPOINT="$($envPairs['COSMOS_ENDPOINT'])" `
+    --build-arg COSMOS_KEY="$($envPairs['COSMOS_KEY'])" `
+    -t ghcr.io/sushanth262/trade-scout-viewer:latest `
+    $Root
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  Write-Host "=== docker login & push ===" -ForegroundColor Cyan
+  $env:GITHUB_TOKEN | docker login ghcr.io -u sushanth262 --password-stdin
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  docker push ghcr.io/sushanth262/trade-scout-viewer:latest
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+  Write-Host "=== skipping docker build/push (-SkipBuildPush) ===" -ForegroundColor Yellow
+}
 
 Write-Host "=== az vm run-command (resource-group=$ResourceGroup name=$VmName) ===" -ForegroundColor Cyan
 az vm run-command invoke `
