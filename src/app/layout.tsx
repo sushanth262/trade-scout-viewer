@@ -4,10 +4,12 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import styles from "./layout.module.css";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export const metadata: Metadata = {
   title: "TradeHawk | Trade Scout Viewer",
   description: "Trade task and transaction log viewer for earnings-trade bot",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: `${basePath}/icon.svg` },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
