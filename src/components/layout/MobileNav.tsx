@@ -9,6 +9,7 @@ import {
   ScrollText,
   LineChart as LineChartIcon,
   Sparkles,
+  Bookmark,
 } from "lucide-react";
 import styles from "./MobileNav.module.css";
 
@@ -17,6 +18,7 @@ const items = [
   { href: "/trades", label: "Trades", icon: ArrowRightLeft },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
+  { href: "/watchlist", label: "Watch", icon: Bookmark },
   { href: "/runs", label: "Runs", icon: LineChartIcon },
   { href: "/summary", label: "Summary", icon: Sparkles },
   { href: "/logs", label: "Logs", icon: ScrollText },
