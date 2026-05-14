@@ -9,10 +9,15 @@ const LOG_ROOT = process.env.LOG_ROOT ?? "/home/azureuser/claudetrades";
 const LOG_CANDIDATES: Record<string, string[]> = {
   copytrade: ["copytrade/copytrade.log", "copytrade.log"],
   "earnings-trade": ["earnings-trade/earnings-trade.log", "earnings-trade.log"],
+  "indicator-alert-bot": [
+    "indicator-alert-bot/indicator-alert-bot.log",
+    "indicator-alert-bot.log",
+    "claudetrades/indicator-alert-bot/indicator-alert-bot.log",
+  ],
 };
 
 export interface RunRecord {
-  job: "copytrade" | "earnings-trade";
+  job: "copytrade" | "earnings-trade" | "indicator-alert-bot";
   timestamp: string;
   status: "success" | "fail";
   // Per-run extracted counters
@@ -214,6 +219,61 @@ function parseEarningsTradeRuns(raw: string): RunRecord[] {
   return runs;
 }
 
+/**
+ * Parse indicator-alert-bot.log (stdout from scheduled task under claudetrades).
+ * Each `Cycle done (poll interval config: N min).` line ends one poll cycle.
+ */
+function parseIndicatorAlertRuns(raw: string): RunRecord[] {
+  const lines = raw.split("\n");
+  const runs: RunRecord[] = [];
+  let buffer: string[] = [];
+  let lastKnownTs: string | null = null;
+
+  for (const line of lines) {
+    buffer.push(line);
+    const tsLine = parseTimestamp(line);
+    if (tsLine) lastKnownTs = tsLine;
+
+    const cycleMatch = line.match(/Cycle done \(poll interval config: (\d+) min\)\.\s*$/);
+    if (!cycleMatch) continue;
+
+    const ts = parseTimestamp(line) ?? lastKnownTs ?? new Date().toISOString();
+    let fired = 0;
+    let executed = 0;
+    let failed = 0;
+    for (const b of buffer) {
+      if (/\bFired\s+ast-/.test(b) || /\bFired ast-/.test(b)) fired += 1;
+      if (/\bExecuted\s+ast-/.test(b) || /Executed\s+ast-/.test(b)) executed += 1;
+      if (/\bERROR\b/.test(b) && !/HTTP Error 404/.test(b)) failed += 1;
+    }
+
+    const status: "success" | "fail" = failed > 0 ? "fail" : "success";
+    const pollMin = cycleMatch[1] ?? "?";
+    const summary =
+      fired || executed
+        ? `alerts fired ${fired} · orders executed ${executed} · poll ${pollMin} min`
+        : `cycle ok (poll ${pollMin} min)`;
+
+    runs.push({
+      job: "indicator-alert-bot",
+      timestamp: ts,
+      status,
+      submitted: executed,
+      watched: fired,
+      failed,
+      quiver: 0,
+      capitolTrades: 0,
+      confirmed: 0,
+      screened: 0,
+      buyRated: 0,
+      summary,
+    });
+    buffer = [];
+  }
+
+  return runs;
+}
+
 function aggregate(runs: RunRecord[]): AggregateBuckets {
   const agg = emptyAgg();
   for (const r of runs) {
@@ -238,17 +298,19 @@ export async function GET(req: NextRequest) {
     runs: RunRecord[];
     copytrade: AggregateBuckets;
     earningsTrade: AggregateBuckets;
+    indicatorAlert: AggregateBuckets;
     files: { job: string; path: string | null; sizeBytes: number; mtime: string | null }[];
     generatedAt: string;
   } = {
     runs: [],
     copytrade: emptyAgg(),
     earningsTrade: emptyAgg(),
+    indicatorAlert: emptyAgg(),
     files: [],
     generatedAt: new Date().toISOString(),
   };
 
-  for (const job of ["copytrade", "earnings-trade"] as const) {
+  for (const job of ["copytrade", "earnings-trade", "indicator-alert-bot"] as const) {
     const path = await resolveLogPath(job);
     if (!path) {
       result.files.push({ job, path: null, sizeBytes: 0, mtime: null });
@@ -263,7 +325,12 @@ export async function GET(req: NextRequest) {
         mtime: info.mtime.toISOString(),
       });
 
-      const parsed = job === "copytrade" ? parseCopytradeRuns(raw) : parseEarningsTradeRuns(raw);
+      const parsed =
+        job === "copytrade"
+          ? parseCopytradeRuns(raw)
+          : job === "earnings-trade"
+            ? parseEarningsTradeRuns(raw)
+            : parseIndicatorAlertRuns(raw);
 
       // Time filter (skip records w/ unparseable timestamps as best-effort)
       const filtered = parsed.filter((r) => {
@@ -275,7 +342,8 @@ export async function GET(req: NextRequest) {
 
       const agg = aggregate(filtered);
       if (job === "copytrade") result.copytrade = agg;
-      else result.earningsTrade = agg;
+      else if (job === "earnings-trade") result.earningsTrade = agg;
+      else result.indicatorAlert = agg;
     } catch (err) {
       console.error(`Failed to parse ${job} log:`, err);
       result.files.push({ job, path, sizeBytes: 0, mtime: null });

@@ -12,7 +12,7 @@ import {
 import styles from "./page.module.css";
 
 interface RunRecord {
-  job: "copytrade" | "earnings-trade";
+  job: "copytrade" | "earnings-trade" | "indicator-alert-bot";
   timestamp: string;
   status: "success" | "fail";
   submitted: number;
@@ -41,6 +41,7 @@ interface RunsResponse {
   runs: RunRecord[];
   copytrade: AggregateBuckets;
   earningsTrade: AggregateBuckets;
+  indicatorAlert: AggregateBuckets;
   files: { job: string; path: string | null; sizeBytes: number; mtime: string | null }[];
   generatedAt: string;
 }
@@ -53,8 +54,9 @@ const WINDOW_OPTIONS = [
 ];
 
 const COPYTRADE_COLOR = "#1B2B65"; // brand-500
-const EARNINGS_COLOR  = "#F59E0B"; // warning-500
-const SUCCESS_COLOR   = "#22C55E"; // success-500
+const EARNINGS_COLOR = "#F59E0B"; // warning-500
+const INDICATOR_COLOR = "#7C3AED";
+const SUCCESS_COLOR = "#22C55E"; // success-500
 const FAIL_COLOR      = "#EF4444"; // danger-500
 
 function fmtTimeShort(iso: string): string {
@@ -83,7 +85,16 @@ function formatSize(bytes: number): string {
 }
 
 // Tooltip for line chart
-type LineDatum = { time: number; iso: string; copytrade: number | null; "earnings-trade": number | null; ctRun?: RunRecord; etRun?: RunRecord };
+type LineDatum = {
+  time: number;
+  iso: string;
+  copytrade: number | null;
+  "earnings-trade": number | null;
+  "indicator-alert-bot": number | null;
+  ctRun?: RunRecord;
+  etRun?: RunRecord;
+  iaRun?: RunRecord;
+};
 
 function LineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: LineDatum }> }) {
   if (!active || !payload || !payload.length) return null;
@@ -115,6 +126,17 @@ function LineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
           <span className={styles.tooltipSummary}>{d.etRun.summary}</span>
         </div>
       )}
+      {d.iaRun && (
+        <div className={styles.tooltipRow}>
+          <span className={styles.dot} style={{ background: INDICATOR_COLOR }} />
+          <span className={styles.tooltipJob}>indicator-alert-bot</span>
+          <span className={d.iaRun.status === "success" ? styles.success : styles.fail}>
+            {d.iaRun.status === "success" ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+            {d.iaRun.status}
+          </span>
+          <span className={styles.tooltipSummary}>{d.iaRun.summary}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,10 +145,22 @@ function LineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
 function StatusDot(props: { cx?: number; cy?: number; payload?: LineDatum; dataKey?: string }) {
   const { cx, cy, payload, dataKey } = props;
   if (cx == null || cy == null || !payload) return null;
-  const run = dataKey === "copytrade" ? payload.ctRun : payload.etRun;
+  const run =
+    dataKey === "copytrade"
+      ? payload.ctRun
+      : dataKey === "earnings-trade"
+        ? payload.etRun
+        : dataKey === "indicator-alert-bot"
+          ? payload.iaRun
+          : undefined;
   if (!run) return null;
   const color = run.status === "success" ? SUCCESS_COLOR : FAIL_COLOR;
-  const stroke = dataKey === "copytrade" ? COPYTRADE_COLOR : EARNINGS_COLOR;
+  const stroke =
+    dataKey === "copytrade"
+      ? COPYTRADE_COLOR
+      : dataKey === "earnings-trade"
+        ? EARNINGS_COLOR
+        : INDICATOR_COLOR;
   return (
     <circle cx={cx} cy={cy} r={4.5} fill={color} stroke={stroke} strokeWidth={1.5} />
   );
@@ -160,21 +194,24 @@ export default function RunsPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  // Build line-chart series — one point per unique timestamp, copytrade=1 lane, earnings-trade=2 lane
+  // Build line-chart series — one point per unique timestamp; lanes 1=copytrade, 2=earnings, 3=indicator-alert-bot
   const lineSeries = useMemo<LineDatum[]>(() => {
     if (!data?.runs) return [];
     const byTime = new Map<string, LineDatum>();
     for (const r of data.runs) {
-      const lane = r.job === "copytrade" ? 1 : 2;
+      const lane = r.job === "copytrade" ? 1 : r.job === "earnings-trade" ? 2 : 3;
       const key = r.timestamp;
       const existing = byTime.get(key);
       if (existing) {
         if (r.job === "copytrade") {
           existing.copytrade = lane;
           existing.ctRun = r;
-        } else {
+        } else if (r.job === "earnings-trade") {
           existing["earnings-trade"] = lane;
           existing.etRun = r;
+        } else {
+          existing["indicator-alert-bot"] = lane;
+          existing.iaRun = r;
         }
       } else {
         byTime.set(key, {
@@ -182,8 +219,10 @@ export default function RunsPage() {
           iso: r.timestamp,
           copytrade: r.job === "copytrade" ? lane : null,
           "earnings-trade": r.job === "earnings-trade" ? lane : null,
+          "indicator-alert-bot": r.job === "indicator-alert-bot" ? lane : null,
           ctRun: r.job === "copytrade" ? r : undefined,
           etRun: r.job === "earnings-trade" ? r : undefined,
+          iaRun: r.job === "indicator-alert-bot" ? r : undefined,
         });
       }
     }
@@ -195,15 +234,25 @@ export default function RunsPage() {
     if (!data) return [];
     const ct = data.copytrade;
     const et = data.earningsTrade;
+    const ia = data.indicatorAlert ?? {
+      submitted: 0,
+      watched: 0,
+      failed: 0,
+      quiver: 0,
+      capitolTrades: 0,
+      confirmed: 0,
+      screened: 0,
+      buyRated: 0,
+    };
     return [
-      { category: "Submitted",    copytrade: ct.submitted, "earnings-trade": et.submitted },
-      { category: "Watched",      copytrade: ct.watched,   "earnings-trade": et.watched   },
-      { category: "Failed",       copytrade: ct.failed,    "earnings-trade": et.failed    },
-      { category: "Screened",     copytrade: 0,            "earnings-trade": et.screened  },
-      { category: "BUY-rated",    copytrade: 0,            "earnings-trade": et.buyRated  },
-      { category: "Quiver",       copytrade: ct.quiver,    "earnings-trade": et.quiver    },
-      { category: "Capitol Trades", copytrade: ct.capitolTrades, "earnings-trade": et.capitolTrades },
-      { category: "Confirmed",    copytrade: ct.confirmed, "earnings-trade": et.confirmed },
+      { category: "Submitted", copytrade: ct.submitted, "earnings-trade": et.submitted, "indicator-alert-bot": ia.submitted },
+      { category: "Watched", copytrade: ct.watched, "earnings-trade": et.watched, "indicator-alert-bot": ia.watched },
+      { category: "Failed", copytrade: ct.failed, "earnings-trade": et.failed, "indicator-alert-bot": ia.failed },
+      { category: "Screened", copytrade: 0, "earnings-trade": et.screened, "indicator-alert-bot": 0 },
+      { category: "BUY-rated", copytrade: 0, "earnings-trade": et.buyRated, "indicator-alert-bot": 0 },
+      { category: "Quiver", copytrade: ct.quiver, "earnings-trade": et.quiver, "indicator-alert-bot": 0 },
+      { category: "Capitol Trades", copytrade: ct.capitolTrades, "earnings-trade": et.capitolTrades, "indicator-alert-bot": 0 },
+      { category: "Confirmed", copytrade: ct.confirmed, "earnings-trade": et.confirmed, "indicator-alert-bot": 0 },
     ];
   }, [data]);
 
@@ -211,9 +260,11 @@ export default function RunsPage() {
     const runs = data?.runs ?? [];
     const ct = runs.filter((r) => r.job === "copytrade");
     const et = runs.filter((r) => r.job === "earnings-trade");
+    const ia = runs.filter((r) => r.job === "indicator-alert-bot");
     return {
       copytrade: { total: ct.length, success: ct.filter((r) => r.status === "success").length, fail: ct.filter((r) => r.status === "fail").length },
       earningsTrade: { total: et.length, success: et.filter((r) => r.status === "success").length, fail: et.filter((r) => r.status === "fail").length },
+      indicatorAlert: { total: ia.length, success: ia.filter((r) => r.status === "success").length, fail: ia.filter((r) => r.status === "fail").length },
     };
   }, [data]);
 
@@ -222,8 +273,9 @@ export default function RunsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Job Runs</h1>
         <p className={styles.subtitle}>
-          Cron-scheduled run history for copytrade and earnings-trade · auto-refresh every 60s. Indicator-alert-bot runs
-          on its own schedule — use the <strong>Bot Logs</strong> tab (indicator-alert-bot) for its output.
+          Cron-scheduled run history for <strong>copytrade</strong>, <strong>earnings-trade</strong>, and{" "}
+          <strong>indicator-alert-bot</strong> (log under <code>LOG_ROOT</code>, e.g.{" "}
+          <code>claudetrades/…</code>) · auto-refresh every 60s.
         </p>
       </div>
 
@@ -269,13 +321,24 @@ export default function RunsPage() {
             <span className={styles.fail}><XCircle size={12} /> {totals.earningsTrade.fail}</span>
           </div>
         </Card>
+        <Card className={styles.summaryCard}>
+          <div className={styles.summaryTop}>
+            <span className={styles.dot} style={{ background: INDICATOR_COLOR }} />
+            <span className={styles.summaryJob}>indicator-alert-bot</span>
+          </div>
+          <div className={styles.summaryStats}>
+            <span><Activity size={12} /> {totals.indicatorAlert.total} runs</span>
+            <span className={styles.success}><CheckCircle2 size={12} /> {totals.indicatorAlert.success}</span>
+            <span className={styles.fail}><XCircle size={12} /> {totals.indicatorAlert.fail}</span>
+          </div>
+        </Card>
       </div>
 
       <Card className={styles.chartCard}>
         <div className={styles.chartHeader}>
           <h2 className={styles.sectionTitle}>
             Run Timeline
-            <InfoTip text="Each dot is one cron-scheduled run of a bot. Green = the run finished cleanly (the bot logged 'Cycle done'); red = the bot exited without finishing. Copytrade runs on the lower track, earnings-trade on the upper track. Failures usually mean a network issue or an unhandled exception — check Bot Logs for the trace." />
+            <InfoTip text="Each dot is one cron run. Green = success, red = fail. Tracks: copytrade (y=1), earnings-trade (y=2), indicator-alert-bot (y=3) from each bot’s log under LOG_ROOT. Indicator cycles end with `Cycle done (poll interval…)`." />
           </h2>
           <span className={styles.legendHint}>
             <span className={styles.dot} style={{ background: SUCCESS_COLOR }} /> success
@@ -303,15 +366,18 @@ export default function RunsPage() {
                 />
                 <YAxis
                   type="number"
-                  domain={[0, 3]}
-                  ticks={[1, 2]}
-                  tickFormatter={(v) => (v === 1 ? "copytrade" : v === 2 ? "earnings-trade" : "")}
+                  domain={[0, 4]}
+                  ticks={[1, 2, 3]}
+                  tickFormatter={(v) =>
+                    v === 1 ? "copytrade" : v === 2 ? "earnings-trade" : v === 3 ? "indicator-alert" : ""
+                  }
                   tick={{ fontSize: 11, fill: "#6B7A99" }}
                   stroke="#CBD5E1"
-                  width={110}
+                  width={118}
                 />
                 <ReferenceLine y={1} stroke="#E2E8F0" />
                 <ReferenceLine y={2} stroke="#E2E8F0" />
+                <ReferenceLine y={3} stroke="#E2E8F0" />
                 <Tooltip content={<LineTooltip />} />
                 <Legend
                   iconType="circle"
@@ -337,6 +403,16 @@ export default function RunsPage() {
                   activeDot={{ r: 6 }}
                   isAnimationActive={false}
                 />
+                <Line
+                  type="stepAfter"
+                  dataKey="indicator-alert-bot"
+                  stroke={INDICATOR_COLOR}
+                  strokeWidth={1.5}
+                  connectNulls
+                  dot={<StatusDot />}
+                  activeDot={{ r: 6 }}
+                  isAnimationActive={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -347,14 +423,19 @@ export default function RunsPage() {
         <div className={styles.chartHeader}>
           <h2 className={styles.sectionTitle}>
             Trade Outcomes & Source Pulls
-            <InfoTip text="Aggregate counts across all runs in the selected window. Submitted = orders sent to Alpaca. Watched = picks the bot saw but didn't trade (low conviction). Failed = Alpaca rejected the order. Screened/BUY-rated apply to earnings-trade only. Quiver / Capitol Trades = how many tickers were pulled from each source feed. Confirmed = tickers that appeared in BOTH sources (highest conviction)." />
+            <InfoTip text="Aggregates over the window. For indicator-alert-bot, Submitted ≈ executed Alpaca orders and Watched ≈ alert rules that fired in that cycle (from log buffer)." />
           </h2>
           <span className={styles.legendHint}>
             Aggregated over the selected window
           </span>
         </div>
         <div className={styles.chartBox}>
-          {barData.every((b) => b.copytrade === 0 && b["earnings-trade"] === 0) ? (
+          {barData.every(
+            (b) =>
+              b.copytrade === 0 &&
+              b["earnings-trade"] === 0 &&
+              (b["indicator-alert-bot"] ?? 0) === 0,
+          ) ? (
             <div className={styles.emptyChart}>
               {loading ? "Loading…" : "No data to aggregate yet"}
             </div>
@@ -389,8 +470,9 @@ export default function RunsPage() {
                   iconType="circle"
                   wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
                 />
-                <Bar dataKey="copytrade"      fill={COPYTRADE_COLOR} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="earnings-trade" fill={EARNINGS_COLOR}  radius={[4, 4, 0, 0]} />
+                <Bar dataKey="copytrade" fill={COPYTRADE_COLOR} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="earnings-trade" fill={EARNINGS_COLOR} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="indicator-alert-bot" fill={INDICATOR_COLOR} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
