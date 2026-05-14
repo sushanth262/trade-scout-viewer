@@ -25,9 +25,36 @@ interface Position {
   updated_at?: string;
   politician?: string;
   size_label?: string;
+  /** "alpaca" when row is filled from Alpaca API only (not bot trade log). */
+  source?: string;
+}
+
+type ExchangePosRes = {
+  configured?: boolean;
+  open?: {
+    symbol: string;
+    qty: string;
+    avg_entry_price: string;
+    current_price: string;
+    unrealized_plpc: string;
+    market_value: string;
+  }[];
+  closedSells?: { symbol: string; qty: string; exit_price: number; filled_at: string | null }[];
+};
+
+function up(s: string | undefined): string {
+  return (s ?? "").trim().toUpperCase();
+}
+
+function parsePlc(s: string | undefined): number | undefined {
+  const u = parseFloat(s ?? "");
+  if (!Number.isFinite(u)) return undefined;
+  if (Math.abs(u) <= 1 && u !== 0) return u * 100;
+  return u;
 }
 
 export default function PositionsPage() {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -35,23 +62,31 @@ export default function PositionsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      let exRes: ExchangePosRes = {};
+      try {
+        const r = await fetch(`${basePath}/api/alpaca/exchange-positions`);
+        exRes = (await r.json()) as ExchangePosRes;
+      } catch {
+        exRes = {};
+      }
+
       const [submittedRes, stopsRes, liveRes] = await Promise.all([
         fetchApi<PaginatedResponse<TradeEvent>>("/api/trades", { status: "submitted", limit: "100" }),
         fetchApi<PaginatedResponse<TradeEvent>>("/api/trades", { event: "stop_triggered", limit: "100" }),
         fetchApi<PaginatedResponse<PositionState>>("/api/positions").catch(() => ({ items: [], total: 0 })),
       ]);
 
-      const closedSymbols = new Set(stopsRes.items.map((s) => s.symbol));
+      const closedSymbols = new Set(stopsRes.items.map((s) => up(s.symbol)));
 
-      // Build base map from "submitted" trade events (gives entry context).
       const posMap = new Map<string, Position>();
       for (const t of submittedRes.items) {
-        if (!t.ticker) continue;
-        if (!posMap.has(t.ticker)) {
-          posMap.set(t.ticker, {
-            ticker: t.ticker,
+        const tick = up(t.ticker);
+        if (!tick) continue;
+        if (!posMap.has(tick)) {
+          posMap.set(tick, {
+            ticker: tick,
             entry_price: t.entry_price,
-            status: closedSymbols.has(t.ticker) ? "closed" : "open",
+            status: closedSymbols.has(tick) ? "closed" : "open",
             bot: t.bot,
             politician: t.politician,
             size_label: t.size_label,
@@ -59,10 +94,10 @@ export default function PositionsPage() {
         }
       }
 
-      // Merge in live snapshots from monitor.py — overrides entry/bot if
-      // missing and adds current price, peak, stop, gain%, trail%.
       for (const live of liveRes.items) {
-        const existing = posMap.get(live.ticker);
+        const tick = up(live.ticker);
+        if (!tick) continue;
+        const existing = posMap.get(tick);
         if (existing) {
           existing.qty = live.qty ?? existing.qty;
           existing.entry_price = existing.entry_price ?? live.entry_price ?? undefined;
@@ -73,13 +108,10 @@ export default function PositionsPage() {
           existing.current_gain_pct = live.current_gain_pct;
           existing.bot = existing.bot ?? live.bot;
           existing.updated_at = live.updated_at;
-          // A position with a live snapshot is by definition open.
-          if (!closedSymbols.has(live.ticker)) existing.status = "open";
-        } else if (!closedSymbols.has(live.ticker)) {
-          // Open position that has no submitted-event in our window — still
-          // surface it so the user sees what monitor.py is watching.
-          posMap.set(live.ticker, {
-            ticker: live.ticker,
+          if (!closedSymbols.has(tick)) existing.status = "open";
+        } else if (!closedSymbols.has(tick)) {
+          posMap.set(tick, {
+            ticker: tick,
             bot: live.bot,
             qty: live.qty,
             entry_price: live.entry_price ?? undefined,
@@ -94,20 +126,67 @@ export default function PositionsPage() {
         }
       }
 
-      // Decorate closed positions with exit context.
       for (const s of stopsRes.items) {
-        const sym = s.symbol;
+        const sym = up(s.symbol);
         if (!sym) continue;
-        const pos = posMap.get(sym);
-        if (pos) {
-          pos.exit_price = s.price;
-          pos.peak = pos.peak ?? s.peak;
-          pos.stop_level = pos.stop_level ?? s.stop_level;
-          pos.trail_pct = pos.trail_pct ?? s.trail_pct;
-          pos.exit_timestamp = s.timestamp;
-          if (pos.entry_price && s.price) {
-            pos.current_gain_pct = ((s.price - pos.entry_price) / pos.entry_price) * 100;
-          }
+        let pos = posMap.get(sym);
+        if (!pos) {
+          pos = {
+            ticker: sym,
+            status: "closed",
+            bot: s.bot,
+          };
+          posMap.set(sym, pos);
+        }
+        pos.exit_price = s.price;
+        pos.peak = pos.peak ?? s.peak;
+        pos.stop_level = pos.stop_level ?? s.stop_level;
+        pos.trail_pct = pos.trail_pct ?? s.trail_pct;
+        pos.exit_timestamp = s.timestamp;
+        pos.status = "closed";
+        if (pos.entry_price && s.price) {
+          pos.current_gain_pct = ((s.price - pos.entry_price) / pos.entry_price) * 100;
+        }
+      }
+
+      const alpacaMerge = exRes.configured === true;
+
+      if (alpacaMerge && Array.isArray(exRes.open)) {
+        for (const ap of exRes.open) {
+          const sym = up(ap.symbol);
+          if (!sym) continue;
+          if (posMap.has(sym)) continue;
+          const entry = parseFloat(ap.avg_entry_price) || undefined;
+          const cur = parseFloat(ap.current_price) || undefined;
+          const plc = parsePlc(ap.unrealized_plpc);
+          posMap.set(sym, {
+            ticker: sym,
+            bot: "alpaca",
+            qty: ap.qty,
+            entry_price: entry,
+            current_price: cur,
+            current_gain_pct: plc,
+            status: "open",
+            source: "alpaca",
+          });
+        }
+      }
+
+      if (alpacaMerge && Array.isArray(exRes.closedSells)) {
+        for (const cs of exRes.closedSells) {
+          const sym = up(cs.symbol);
+          if (!sym) continue;
+          if (closedSymbols.has(sym)) continue;
+          if (posMap.has(sym)) continue;
+          posMap.set(sym, {
+            ticker: sym,
+            status: "closed",
+            exit_price: cs.exit_price,
+            exit_timestamp: cs.filled_at ?? undefined,
+            qty: cs.qty,
+            bot: "alpaca",
+            source: "alpaca",
+          });
         }
       }
 
@@ -118,11 +197,12 @@ export default function PositionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [basePath]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  // Auto-refresh every 60s so open-position numbers stay live.
   useEffect(() => {
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
@@ -135,28 +215,47 @@ export default function PositionsPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Positions</h1>
       <p className={styles.subtitle}>
-        Open positions update every 5 minutes from the monitor cycle
+        Bot rows from trade log + live snapshots; Alpaca fills in any open/closed positions missing from that set.
         {lastRefreshed && ` · refreshed ${formatDistanceToNow(lastRefreshed, { addSuffix: true })}`}
       </p>
 
       {loading && positions.length === 0 ? (
-        <Card><div className={styles.loading}><div className={styles.spinner} />Loading...</div></Card>
+        <Card>
+          <div className={styles.loading}>
+            <div className={styles.spinner} />
+            Loading...
+          </div>
+        </Card>
       ) : (
         <>
           <h2 className={styles.sectionTitle}>
             <Activity size={16} /> Open Positions ({openPos.length})
-            <InfoTip text="Positions the bot currently holds — refreshed every 5 minutes by monitor.py. 'Current' is the live Alpaca price. 'Peak' is the highest price since you bought it (used to anchor the trailing stop). 'Stop' is the price that will trigger an automatic sell. 'Gain' is unrealized P&L." />
+            <InfoTip text="Open rows from submitted trades + monitor snapshots, plus any open holding at Alpaca not already listed. Alpaca-only rows are tagged." />
             <button
               type="button"
               onClick={load}
               disabled={loading}
-              style={{ marginLeft: "auto", background: "transparent", border: "1px solid var(--border-light)", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)" }}
+              style={{
+                marginLeft: "auto",
+                background: "transparent",
+                border: "1px solid var(--border-light)",
+                borderRadius: 6,
+                padding: "4px 10px",
+                fontSize: 12,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                color: "var(--text-secondary)",
+              }}
             >
               <RefreshCw size={12} style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }} /> Refresh
             </button>
           </h2>
           {openPos.length === 0 ? (
-            <Card><p className={styles.emptyText}>No open positions</p></Card>
+            <Card>
+              <p className={styles.emptyText}>No open positions</p>
+            </Card>
           ) : (
             <div className={styles.posGrid}>
               {openPos.map((p) => {
@@ -166,7 +265,10 @@ export default function PositionsPage() {
                   <Card key={p.ticker} tint={tint} className={styles.posCard}>
                     <div className={styles.posHeader}>
                       <span className={styles.ticker}>{p.ticker}</span>
-                      <StatusChip status="submitted" />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {p.source === "alpaca" && <span className={styles.badge}>Alpaca</span>}
+                        <StatusChip status="submitted" />
+                      </div>
                     </div>
                     <div className={styles.posMetrics}>
                       <div className={styles.posMetric}>
@@ -183,9 +285,7 @@ export default function PositionsPage() {
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Peak</span>
-                        <span className={styles.posValue}>
-                          {p.peak != null ? `$${p.peak.toFixed(2)}` : "—"}
-                        </span>
+                        <span className={styles.posValue}>{p.peak != null ? `$${p.peak.toFixed(2)}` : "—"}</span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Stop</span>
@@ -201,14 +301,14 @@ export default function PositionsPage() {
                               {gain >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                               {gain.toFixed(1)}%
                             </>
-                          ) : "—"}
+                          ) : (
+                            "—"
+                          )}
                         </span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Trail</span>
-                        <span className={styles.posValue}>
-                          {p.trail_pct != null ? `${p.trail_pct}%` : "—"}
-                        </span>
+                        <span className={styles.posValue}>{p.trail_pct != null ? `${p.trail_pct}%` : "—"}</span>
                       </div>
                       {p.qty && (
                         <div className={styles.posMetric}>
@@ -248,20 +348,31 @@ export default function PositionsPage() {
 
           <h2 className={styles.sectionTitle}>
             <Target size={16} /> Closed Positions ({closedPos.length})
-            <InfoTip text="Positions that have been sold — either the trailing stop fired or the bot manually closed them. P&L is realized." />
+            <InfoTip text="Stop-triggered exits from your bots, plus recent Alpaca sell fills not already covered by a stop event." />
           </h2>
           {closedPos.length === 0 ? (
-            <Card><p className={styles.emptyText}>No closed positions</p></Card>
+            <Card>
+              <p className={styles.emptyText}>No closed positions</p>
+            </Card>
           ) : (
             <div className={styles.posGrid}>
               {closedPos.map((p) => {
                 const gain = p.current_gain_pct ?? 0;
                 const tint = gain >= 0 ? "success" : "danger";
                 return (
-                  <Card key={p.ticker} tint={tint} className={styles.posCard}>
+                  <Card key={`${p.ticker}-${p.exit_timestamp ?? "x"}`} tint={tint} className={styles.posCard}>
                     <div className={styles.posHeader}>
                       <span className={styles.ticker}>{p.ticker}</span>
-                      <StatusChip status="stop_triggered" />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {p.source === "alpaca" ? (
+                          <>
+                            <span className={styles.badge}>Alpaca</span>
+                            <StatusChip status="submitted" />
+                          </>
+                        ) : (
+                          <StatusChip status="stop_triggered" />
+                        )}
+                      </div>
                     </div>
                     <div className={styles.posMetrics}>
                       <div className={styles.posMetric}>
@@ -278,15 +389,19 @@ export default function PositionsPage() {
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>Peak</span>
-                        <span className={styles.posValue}>
-                          {p.peak != null ? `$${p.peak.toFixed(2)}` : "—"}
-                        </span>
+                        <span className={styles.posValue}>{p.peak != null ? `$${p.peak.toFixed(2)}` : "—"}</span>
                       </div>
                       <div className={styles.posMetric}>
                         <span className={styles.posLabel}>P&L</span>
                         <span className={`${styles.posValue} ${gain >= 0 ? styles.gainUp : styles.gainDown}`}>
-                          {gain >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                          {gain.toFixed(1)}%
+                          {p.current_gain_pct != null ? (
+                            <>
+                              {gain >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              {gain.toFixed(1)}%
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </span>
                       </div>
                       <div className={styles.posMetric}>

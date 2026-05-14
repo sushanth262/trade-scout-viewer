@@ -22,6 +22,17 @@
 
 .ticker { font-size: 18px; font-weight: 700; color: var(--brand-500); }
 
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 .posMetrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
 .posMetric { display: flex; flex-direction: column; gap: 2px; }
 .posLabel { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-secondary); }

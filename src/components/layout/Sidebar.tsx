@@ -13,6 +13,7 @@ import {
   Sparkles,
   Settings,
   Bookmark,
+  Wallet2,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/trades", label: "Trade Log", icon: ArrowRightLeft },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
+  { href: "/balances", label: "Balances", icon: Wallet2 },
   { href: "/watchlist", label: "Watchlist", icon: Bookmark },
   { href: "/activity", label: "Activity Feed", icon: Activity },
   { href: "/runs", label: "Job Runs", icon: LineChartIcon },
