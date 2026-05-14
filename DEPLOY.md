@@ -2,6 +2,28 @@
 
 Deploy **my-scoutify** (trade-scout-viewer) to an Azure VM using Docker.
 
+## Before you deploy (required)
+
+**Do not build or run the production container until every environment variable below is set to real values** (no placeholders). Ask the repo owner to confirm each secret before you push a new image or restart Docker on the VM.
+
+| Variable | Where | Purpose |
+|----------|--------|---------|
+| `COSMOS_ENDPOINT` | `.env.local` / Docker `-e` | Azure Cosmos account URI |
+| `COSMOS_KEY` | `.env.local` / Docker `-e` | Cosmos read/write key |
+| `ALPACA_API_KEY` | same | Alpaca paper/live trading key |
+| `ALPACA_API_SECRET` | same | Alpaca secret |
+| `ALPACA_BASE_URL` | same | Default `https://paper-api.alpaca.markets` |
+| `ALPACA_DATA_URL` | same | Default `https://data.alpaca.markets` |
+| `QUIVER_API_KEY` | same | Optional Quiver Quant live API |
+| `ALERT_HMAC_SECRET` | same | Long random string; **must match** `indicator-alert-bot` `.env` |
+| `SENDGRID_API_KEY` | same | Optional; for future server-side mail |
+| `ALERT_EMAIL_TO` | same | Alert recipient |
+| `ALERT_BASE_URL` | same | Public site URL for email approval links (e.g. `http://your-vm:3001`) |
+
+After filling secrets, run `npm run build` locally, then proceed with Docker build / deploy steps below. When you start the container on the VM, pass the same keys as `-e` flags (or an env file) so runtime matches `.env.local`.
+
+---
+
 ## Architecture
 
 ```

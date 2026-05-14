@@ -165,3 +165,56 @@ export interface PositionState {
   updated_at?: string;
   source?: string;
 }
+
+/** User watchlist row in unified `trades` container (partition: ticker). */
+export interface WatchlistEntry {
+  id: string;
+  kind: "watchlist";
+  ticker: string;
+  notes?: string;
+  tags?: string[];
+  added_at: string;
+}
+
+export type AlertRuleType = "ema_crossover" | "rsi_threshold" | "macd_cross" | "price_level";
+export type AlertTimeframe = "1D" | "1H" | "15Min";
+
+/** Configurable technical alert (partition: ticker). */
+export interface AlertRule {
+  id: string;
+  kind: "alert_rule";
+  ticker: string;
+  name: string;
+  rule_type: AlertRuleType;
+  params: Record<string, unknown>;
+  timeframe: AlertTimeframe;
+  enabled: boolean;
+  created_at: string;
+}
+
+export type AlertStateStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "executed"
+  | "expired";
+
+export type BotAction = "BUY" | "SELL" | "WATCH";
+
+/** Fired alert instance (partition: ticker). */
+export interface AlertState {
+  id: string;
+  kind: "alert_state";
+  ticker: string;
+  rule_id: string;
+  rule_name: string;
+  rule_type: string;
+  fired_at: string;
+  price_at_fire: number;
+  indicators: Record<string, number>;
+  status: AlertStateStatus;
+  bot_action: BotAction;
+  approved_at?: string;
+  executed_at?: string;
+  alpaca_order_id?: string;
+}

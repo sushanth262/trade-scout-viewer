@@ -1,2 +1,16 @@
-COSMOS_ENDPOINT=https://tradescoutviewer.documents.azure.com:443/
-COSMOS_KEY=your-cosmos-key-here
+# trade-scout-viewer — copy to `.env.local` and fill every value before deploy.
+
+COSMOS_ENDPOINT=
+COSMOS_KEY=
+
+ALPACA_API_KEY=
+ALPACA_API_SECRET=
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+ALPACA_DATA_URL=https://data.alpaca.markets
+
+QUIVER_API_KEY=
+
+ALERT_HMAC_SECRET=
+SENDGRID_API_KEY=
+ALERT_EMAIL_TO=
+ALERT_BASE_URL=http://127.0.0.1:3000
