@@ -7,22 +7,36 @@
   height: 60px;
   background: white;
   border-top: 1px solid var(--border-light);
-  justify-content: space-around;
+  justify-content: flex-start;
   align-items: center;
+  gap: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
   z-index: 100;
   box-shadow: 0 -2px 8px rgba(27,43,101,0.05);
+}
+
+.bar::-webkit-scrollbar {
+  display: none;
 }
 
 .item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 56px;
   gap: 2px;
   color: var(--text-tertiary);
   text-decoration: none;
   font-size: 10px;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 6px 10px;
   transition: color 0.15s;
 }
 
