@@ -11,7 +11,10 @@
   Requires Docker Desktop (or another engine) running locally for build/push (unless -SkipBuildPush).
 
 .PARAMETER AlertBaseUrl
-  Public base URL for email approval links (default matches DEPLOY.md).
+  Public base URL for email approval links (default: HTTPS /scout behind Aura nginx).
+
+.PARAMETER NextBasePath
+  Next.js basePath (must match nginx location). Default /scout. Pass "" for legacy :3001 root deploy.
 
 .PARAMETER SkipBuildPush
   Only pull/restart the container on the VM (image must already be on GHCR).
@@ -19,7 +22,8 @@
 param(
   [string]$ResourceGroup = "auravm",
   [string]$VmName = "aura",
-  [string]$AlertBaseUrl = "http://aura-rca.northcentralus.cloudapp.azure.com:3001",
+  [string]$AlertBaseUrl = "https://aura-rca.northcentralus.cloudapp.azure.com/scout",
+  [string]$NextBasePath = "/scout",
   [switch]$SkipAlertBaseUrlOverride,
   [switch]$SkipBuildPush
 )
@@ -101,10 +105,12 @@ $remote = $remote -replace "`r`n", "`n" -replace "`r", "`n"
 $b64script = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remote))
 
 if (-not $SkipBuildPush) {
-  Write-Host "=== docker build ===" -ForegroundColor Cyan
+  Write-Host "=== docker build (BASE_PATH=$NextBasePath) ===" -ForegroundColor Cyan
+  $bpArg = if ([string]::IsNullOrWhiteSpace($NextBasePath)) { "" } else { $NextBasePath.Trim() }
   docker build `
     --build-arg COSMOS_ENDPOINT="$($envPairs['COSMOS_ENDPOINT'])" `
     --build-arg COSMOS_KEY="$($envPairs['COSMOS_KEY'])" `
+    --build-arg BASE_PATH="$bpArg" `
     -t ghcr.io/sushanth262/trade-scout-viewer:latest `
     $Root
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
