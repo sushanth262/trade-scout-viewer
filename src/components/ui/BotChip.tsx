@@ -15,6 +15,12 @@ const palette: Record<string, { bg: string; text: string; border: string; label:
     border: "#FDE68A",
     label: "earnings-trade",
   },
+  "indicator-alert-bot": {
+    bg: "#ECFDF5",
+    text: "#047857",
+    border: "#A7F3D0",
+    label: "indicator-alert-bot",
+  },
   earnings: {
     bg: "#FFFBEB",
     text: "#B45309",

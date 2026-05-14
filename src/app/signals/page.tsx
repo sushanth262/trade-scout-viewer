@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import styles from "./page.module.css";
 
 const filters = [
-  { key: "bot", label: "Bot", options: ["copytrade", "earnings-trade"] },
+  { key: "bot", label: "Bot", options: ["copytrade", "earnings-trade", "indicator-alert-bot"] },
   { key: "rating", label: "Rating", options: ["BUY", "WATCH"] },
   { key: "conviction", label: "Conviction", options: ["VERY HIGH", "HIGH", "MEDIUM", "LOW"] },
   { key: "confirmed", label: "Confirmed", options: ["true", "false"] },
@@ -133,7 +133,11 @@ export default function SignalsPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Signals</h1>
-      <p className={styles.subtitle}>Screened tickers with full analysis data</p>
+      <p className={styles.subtitle}>
+        Screened tickers from <strong>copytrade</strong> (politician disclosures), <strong>earnings-trade</strong> (earnings +
+        politician overlap), and <strong>indicator-alert-bot</strong> if those signals are ingested with{" "}
+        <code>bot</code> set.
+      </p>
 
       <FilterBar
         filters={filters}

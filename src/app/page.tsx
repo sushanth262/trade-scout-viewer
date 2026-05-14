@@ -71,7 +71,7 @@ export default function DashboardPage() {
           deltaType="up"
           tint="info"
           icon={<Radar size={18} />}
-          help="Picks the bots evaluated this period. Earnings-trade screens tickers with upcoming earnings + politician buying; copytrade evaluates every disclosure it sees. BUY-rated = strong conviction (the bot would or did trade it)."
+          help="Picks the bots evaluated this period. copytrade mirrors politician stock buys; earnings-trade targets companies with upcoming earnings that politicians are buying; indicator-alert-bot evaluates technical rules on your watchlist (separate pipeline). BUY-rated = strong conviction."
         />
         <MetricCard
           label="Stops Triggered"

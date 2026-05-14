@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { AlertRule, AlertState } from "@/lib/cosmos";
+import { viewerWriteHeaders } from "@/lib/viewer-write-client";
 import styles from "./page.module.css";
 
 function TradingViewEmbed({ ticker }: { ticker: string }) {
@@ -31,6 +32,7 @@ export default function ChartPage() {
   const [lookback, setLookback] = useState(90);
   const [btResult, setBtResult] = useState<object | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ruleErr, setRuleErr] = useState<string | null>(null);
   const [name, setName] = useState("EMA cross");
   const [ruleType, setRuleType] = useState<AlertRule["rule_type"]>("ema_crossover");
   const [timeframe, setTimeframe] = useState<AlertRule["timeframe"]>("1D");
@@ -51,16 +53,17 @@ export default function ChartPage() {
   }, [loadRules]);
 
   const addRule = async () => {
+    setRuleErr(null);
     let params: Record<string, unknown> = {};
     try {
       params = JSON.parse(paramsJson) as Record<string, unknown>;
     } catch {
-      alert("Invalid JSON for params");
+      setRuleErr("Invalid JSON for params");
       return;
     }
-    await fetch(`${base}/api/alert-rules`, {
+    const res = await fetch(`${base}/api/alert-rules`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...viewerWriteHeaders() },
       body: JSON.stringify({
         ticker,
         name,
@@ -70,20 +73,44 @@ export default function ChartPage() {
         enabled: true,
       }),
     });
+    if (!res.ok) {
+      let msg = await res.text();
+      try {
+        const j = JSON.parse(msg) as { error?: string };
+        if (j.error) msg = j.error;
+      } catch {
+        /* raw */
+      }
+      setRuleErr(msg || res.statusText);
+      return;
+    }
     await loadRules();
   };
 
   const toggleRule = async (id: string, enabled: boolean) => {
-    await fetch(`${base}/api/alert-rules?id=${encodeURIComponent(id)}`, {
+    setRuleErr(null);
+    const res = await fetch(`${base}/api/alert-rules?id=${encodeURIComponent(id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...viewerWriteHeaders() },
       body: JSON.stringify({ enabled }),
     });
+    if (!res.ok) {
+      setRuleErr(await res.text());
+      return;
+    }
     await loadRules();
   };
 
   const deleteRule = async (id: string) => {
-    await fetch(`${base}/api/alert-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    setRuleErr(null);
+    const res = await fetch(`${base}/api/alert-rules?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { ...viewerWriteHeaders() },
+    });
+    if (!res.ok) {
+      setRuleErr(await res.text());
+      return;
+    }
     await loadRules();
   };
 
@@ -114,7 +141,7 @@ export default function ChartPage() {
   return (
     <div className={styles.page}>
       <div className={styles.head}>
-        <Link href="/watchlist" className={styles.back}>
+        <Link href={`${base}/watchlist`} className={styles.back}>
           ← Watchlist
         </Link>
         <h1 className={styles.title}>{ticker}</h1>
@@ -137,6 +164,12 @@ export default function ChartPage() {
 
       {tab === "rules" && (
         <div className={styles.panel}>
+          <p className={styles.muted}>
+            Rules here drive <strong>indicator-alert-bot</strong> (technical signals + email approval).{" "}
+            <strong>copytrade</strong> / <strong>earnings-trade</strong> use politician + earnings screens elsewhere in
+            TradeHawk.
+          </p>
+          {ruleErr && <p className={styles.err}>{ruleErr}</p>}
           <h2 className={styles.h2}>Rules</h2>
           <ul className={styles.ruleList}>
             {rules.map((r) => (

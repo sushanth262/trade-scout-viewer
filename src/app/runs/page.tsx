@@ -222,7 +222,8 @@ export default function RunsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Job Runs</h1>
         <p className={styles.subtitle}>
-          Cron-scheduled run history for copytrade and earnings-trade · auto-refresh every 60s
+          Cron-scheduled run history for copytrade and earnings-trade · auto-refresh every 60s. Indicator-alert-bot runs
+          on its own schedule — use the <strong>Bot Logs</strong> tab (indicator-alert-bot) for its output.
         </p>
       </div>
 

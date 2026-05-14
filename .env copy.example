@@ -14,3 +14,13 @@ ALERT_HMAC_SECRET=
 SENDGRID_API_KEY=
 ALERT_EMAIL_TO=
 ALERT_BASE_URL=http://127.0.0.1:3000
+
+# Parent directory on the server where copytrade/ and earnings-trade/ live (so .log files resolve).
+# VM example: LOG_ROOT=/home/azureuser/claudetrades
+LOG_ROOT=
+
+# Browser writes (watchlist, alert rules) from HTTPS: set the same random string here and at Docker build
+# (--build-arg VIEWER_WRITE_TOKEN=...) so the UI can send header x-viewer-write-token. Optional:
+# ALLOW_BROWSER_COSMOS_WRITES=true
+VIEWER_WRITE_TOKEN=
+ALLOW_BROWSER_COSMOS_WRITES=

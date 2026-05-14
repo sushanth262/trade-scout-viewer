@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
+import { viewerWriteHeaders } from "@/lib/viewer-write-client";
 import type { WatchlistEntry, Signal, AlertState } from "@/lib/cosmos";
 import styles from "./page.module.css";
 
@@ -104,29 +105,71 @@ export default function WatchlistPage() {
     try {
       const res = await fetch(`${basePath}/api/watchlist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...viewerWriteHeaders() },
         body: JSON.stringify({ ticker: t }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        let msg = await res.text();
+        try {
+          const j = JSON.parse(msg) as { error?: string };
+          if (j.error) msg = j.error;
+        } catch {
+          /* use raw */
+        }
+        throw new Error(msg || res.statusText);
+      }
       setQuery("");
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Add failed (POST only works from same host as API)");
+      setErr(e instanceof Error ? e.message : "Add failed");
     }
   };
 
   const removeRow = async (ticker: string) => {
-    await fetch(`${basePath}/api/watchlist?ticker=${encodeURIComponent(ticker)}`, { method: "DELETE" });
-    await load();
+    setErr(null);
+    try {
+      const res = await fetch(`${basePath}/api/watchlist?ticker=${encodeURIComponent(ticker)}`, {
+        method: "DELETE",
+        headers: { ...viewerWriteHeaders() },
+      });
+      if (!res.ok) {
+        let msg = await res.text();
+        try {
+          const j = JSON.parse(msg) as { error?: string };
+          if (j.error) msg = j.error;
+        } catch {
+          /* raw */
+        }
+        throw new Error(msg || res.statusText);
+      }
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Remove failed");
+    }
   };
 
   const saveNotes = async (ticker: string, notes: string) => {
-    await fetch(`${basePath}/api/watchlist?ticker=${encodeURIComponent(ticker)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes }),
-    });
-    await load();
+    setErr(null);
+    try {
+      const res = await fetch(`${basePath}/api/watchlist?ticker=${encodeURIComponent(ticker)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...viewerWriteHeaders() },
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) {
+        let msg = await res.text();
+        try {
+          const j = JSON.parse(msg) as { error?: string };
+          if (j.error) msg = j.error;
+        } catch {
+          /* raw */
+        }
+        throw new Error(msg || res.statusText);
+      }
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Save notes failed");
+    }
   };
 
   const runAlpacaSearch = async () => {
@@ -171,7 +214,10 @@ export default function WatchlistPage() {
       <h1 className={styles.title}>Watchlist</h1>
       <p className={styles.subtitle}>
         Add tickers by symbol. Live prices refresh every 60s when Alpaca keys are set in{" "}
-        <code className={styles.code}>.env.local</code>. Click a symbol for chart and alert rules.
+        <code className={styles.code}>.env.local</code>. Chart + alert rules use the same tickers.{" "}
+        <strong>copytrade</strong> and <strong>earnings-trade</strong> execute equities from politician disclosures and
+        earnings screens; <strong>indicator-alert-bot</strong> runs technical rules on watchlist symbols and only trades
+        after email approval.
       </p>
       {quoteNotice && <p className={styles.notice}>{quoteNotice}</p>}
       {err && <p className={styles.err}>{err}</p>}
@@ -217,6 +263,7 @@ export default function WatchlistPage() {
                 <th>Ticker</th>
                 <th>Price</th>
                 <th>Chg%</th>
+                <th>Politicians</th>
                 <th>Bot signal</th>
                 <th>Alert</th>
                 <th>Notes</th>
@@ -230,21 +277,26 @@ export default function WatchlistPage() {
                 const nAlerts = alertCounts[r.ticker] ?? 0;
                 const chg =
                   q?.change_pct != null ? `${q.change_pct >= 0 ? "+" : ""}${q.change_pct.toFixed(2)}%` : "—";
+                const polRaw = sig?.politicians?.length ? sig.politicians.join(", ") : "";
+                const polShort = polRaw.length > 48 ? `${polRaw.slice(0, 48)}…` : polRaw || "—";
                 return (
                   <tr key={r.ticker}>
                     <td>
-                      <Link className={styles.ticker} href={`/chart/${encodeURIComponent(r.ticker)}`}>
+                      <Link className={styles.ticker} href={`${basePath}/chart/${encodeURIComponent(r.ticker)}`}>
                         {r.ticker}
                       </Link>
                     </td>
                     <td>{q?.price != null ? `$${q.price.toFixed(2)}` : "—"}</td>
                     <td>{chg}</td>
+                    <td className={styles.sig} title={polRaw || undefined}>
+                      {polShort}
+                    </td>
                     <td className={styles.sig}>
                       {sig ? `${sig.rating} ${sig.conviction ?? ""}`.trim() : "—"}
                     </td>
                     <td>
                       {nAlerts > 0 ? (
-                        <Link className={styles.badge} href={`/chart/${encodeURIComponent(r.ticker)}`}>
+                        <Link className={styles.badge} href={`${basePath}/chart/${encodeURIComponent(r.ticker)}`}>
                           {nAlerts} pending
                         </Link>
                       ) : (

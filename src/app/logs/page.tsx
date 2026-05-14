@@ -8,6 +8,8 @@ import styles from "./page.module.css";
 interface LogResponse {
   name: string;
   file: string;
+  fileResolved?: string | null;
+  logRoot?: string;
   sizeBytes: number;
   totalLines: number;
   days: number;
@@ -18,6 +20,7 @@ interface LogResponse {
 const LOG_TABS = [
   { key: "earnings-trade", label: "Earnings Trade" },
   { key: "copytrade", label: "Copytrade" },
+  { key: "indicator-alert-bot", label: "Indicator alert bot" },
   { key: "cosmos", label: "Cosmos Sync" },
 ];
 
@@ -92,7 +95,11 @@ export default function LogsPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Bot Logs</h1>
-        <p className={styles.subtitle}>Last {days} day{days === 1 ? "" : "s"} · local file + Cosmos sync</p>
+        <p className={styles.subtitle}>
+          Last {days} day{days === 1 ? "" : "s"} · local file + Cosmos loglines. For copytrade / earnings-trade, set{" "}
+          <code>LOG_ROOT</code> on the server to the parent folder that contains those repos (VM default:{" "}
+          <code>/home/azureuser/claudetrades</code>). Indicator bot logs to Cosmos from the scheduled task.
+        </p>
       </div>
 
       <div className={styles.controls}>
@@ -149,6 +156,11 @@ export default function LogsPage() {
       {data && (
         <div className={styles.meta}>
           <span><FileText size={11} /> {data.file}</span>
+          {data.logRoot && !data.fileResolved && (
+            <span title="No file on this host — only Cosmos lines may appear">
+              LOG_ROOT={data.logRoot} (file missing)
+            </span>
+          )}
           <span>{formatSize(data.sizeBytes)}</span>
           <span>{data.totalLines} lines in window</span>
           {data.sources && (

@@ -107,10 +107,12 @@ $b64script = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($re
 if (-not $SkipBuildPush) {
   Write-Host "=== docker build (BASE_PATH=$NextBasePath) ===" -ForegroundColor Cyan
   $bpArg = if ([string]::IsNullOrWhiteSpace($NextBasePath)) { "" } else { $NextBasePath.Trim() }
+  $vwTok = if ($envPairs.Contains("VIEWER_WRITE_TOKEN")) { $envPairs["VIEWER_WRITE_TOKEN"] } else { "" }
   docker build `
     --build-arg COSMOS_ENDPOINT="$($envPairs['COSMOS_ENDPOINT'])" `
     --build-arg COSMOS_KEY="$($envPairs['COSMOS_KEY'])" `
     --build-arg BASE_PATH="$bpArg" `
+    --build-arg VIEWER_WRITE_TOKEN="$vwTok" `
     -t ghcr.io/sushanth262/trade-scout-viewer:latest `
     $Root
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

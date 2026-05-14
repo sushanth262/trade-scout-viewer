@@ -127,7 +127,11 @@ export default function TradesPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Trade Log</h1>
-      <p className={styles.subtitle}>All trade executions and stop events</p>
+      <p className={styles.subtitle}>
+        Executions from <strong>copytrade</strong> and <strong>earnings-trade</strong> (politician / earnings screens).
+        Trades opened after <strong>indicator-alert-bot</strong> email approval appear here when tagged with{" "}
+        <code>bot</code> on ingest.
+      </p>
 
       <FilterBar
         filters={filters}

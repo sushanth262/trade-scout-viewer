@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer, WatchlistEntry } from "@/lib/cosmos";
-import { isLocalRequest, rejectExternal } from "@/lib/localhost-only";
+import { allowViewerWrite, rejectExternal } from "@/lib/localhost-only";
 
 function normTicker(t: string): string {
   return t.trim().toUpperCase();
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const body = (await req.json()) as { ticker: string; notes?: string; tags?: string[] };
     if (!body?.ticker) {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const sp = req.nextUrl.searchParams;
     const tickerRaw = sp.get("ticker");
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const sp = req.nextUrl.searchParams;
     const tickerRaw = sp.get("ticker");

@@ -12,6 +12,11 @@ const LOG_ROOT = process.env.LOG_ROOT ?? "/home/azureuser/claudetrades";
 const ALLOWED_LOGS: Record<string, string[]> = {
   "earnings-trade": ["earnings-trade/earnings-trade.log", "earnings-trade.log"],
   copytrade: ["copytrade/copytrade.log", "copytrade.log"],
+  "indicator-alert-bot": [
+    "indicator-alert-bot/indicator-alert-bot.log",
+    "indicator-alert-bot.log",
+    "claudetrades/indicator-alert-bot/indicator-alert-bot.log",
+  ],
   cosmos: ["cosmos_sync.log"],
 };
 
@@ -169,6 +174,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     name,
     file: local.relPath,
+    fileResolved: local.fullPath,
+    logRoot: LOG_ROOT,
     sizeBytes: local.sizeBytes,
     totalLines: total,
     days,

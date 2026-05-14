@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer, AlertRule } from "@/lib/cosmos";
-import { isLocalRequest, rejectExternal } from "@/lib/localhost-only";
+import { allowViewerWrite, rejectExternal } from "@/lib/localhost-only";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const body = (await req.json()) as Partial<AlertRule>;
     if (!body.ticker || !body.name || !body.rule_type || !body.timeframe) {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!isLocalRequest(req)) return rejectExternal();
+  if (!allowViewerWrite(req)) return rejectExternal();
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

@@ -152,3 +152,9 @@
   padding: 12px;
   border-radius: 8px;
 }
+
+.err {
+  color: var(--danger-600, #dc2626);
+  font-size: 13px;
+  margin: 0 0 8px;
+}

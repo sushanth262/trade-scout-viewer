@@ -184,7 +184,9 @@ export default function SummaryPage() {
           Transactions Summary
         </h1>
         <p className={styles.subtitle}>
-          AI-generated daily debrief grounded in what the bots actually saw and did today.
+          AI-generated daily debrief grounded in what <strong>copytrade</strong> and <strong>earnings-trade</strong> saw
+          and did today. <strong>Indicator-alert-bot</strong> activity is in Bot Logs + alert states, not this summary
+          unless you extend the summarizer.
         </p>
       </div>
 
