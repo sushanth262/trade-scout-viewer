@@ -19,8 +19,8 @@ interface LogResponse {
 
 const LOG_TABS = [
   { key: "earnings-trade", label: "Earnings Trade" },
-  { key: "copytrade", label: "Copytrade" },
-  { key: "indicator-alert-bot", label: "Indicator alert bot" },
+  { key: "copytrade", label: "Copy Trade" },
+  { key: "indicator-alert-bot", label: "Indicator Alert" },
   { key: "cosmos", label: "Cosmos Sync" },
 ];
 
@@ -96,9 +96,9 @@ export default function LogsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Bot Logs</h1>
         <p className={styles.subtitle}>
-          Last {days} day{days === 1 ? "" : "s"} · local file + Cosmos loglines. For copytrade / earnings-trade, set{" "}
+          Last {days} day{days === 1 ? "" : "s"} · local file + Cosmos loglines. For Copy Trade and Earnings Trade, set{" "}
           <code>LOG_ROOT</code> on the server to the parent folder that contains those repos (VM default:{" "}
-          <code>/home/azureuser/claudetrades</code>). Indicator bot logs to Cosmos from the scheduled task.
+          <code>/home/azureuser/claudetrades</code>). Indicator Alert bot logs to Cosmos from the scheduled task.
         </p>
       </div>
 

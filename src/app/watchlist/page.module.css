@@ -58,6 +58,78 @@
   gap: 8px;
   align-items: center;
 }
+.searchWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+}
+.suggestList {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: white;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  z-index: 5;
+}
+.suggestBtn {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+.suggestBtn:hover {
+  background: var(--brand-50, #eff6ff);
+}
+.suggestSym {
+  font-weight: 700;
+  min-width: 4rem;
+}
+.suggestName {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestSrc {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+.suggestMuted {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.bulkBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: #f8fafc;
+}
+.bulkLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-right: auto;
+}
 .input {
   flex: 1;
   min-width: 200px;

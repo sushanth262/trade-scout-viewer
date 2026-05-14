@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer, WatchlistEntry } from "@/lib/cosmos";
 import { allowViewerWrite, rejectExternal } from "@/lib/localhost-only";
+import { isValidEquityTicker, normalizeTicker } from "@/lib/ticker";
 
 function normTicker(t: string): string {
-  return t.trim().toUpperCase();
+  return normalizeTicker(t);
 }
 
 export async function GET() {
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ticker required" }, { status: 400 });
     }
     const ticker = normTicker(body.ticker);
+    if (!isValidEquityTicker(ticker)) {
+      return NextResponse.json(
+        { error: "Invalid ticker. Use a US equity symbol (e.g. AAPL or BRK.B)." },
+        { status: 400 },
+      );
+    }
     const container = await getContainer("trades");
     const id = `watchlist-${ticker}`;
     const doc: WatchlistEntry = {
@@ -53,6 +60,9 @@ export async function PATCH(req: NextRequest) {
     const tickerRaw = sp.get("ticker");
     if (!tickerRaw) return NextResponse.json({ error: "ticker query required" }, { status: 400 });
     const ticker = normTicker(tickerRaw);
+    if (!isValidEquityTicker(ticker)) {
+      return NextResponse.json({ error: "Invalid ticker" }, { status: 400 });
+    }
     const body = (await req.json()) as { notes?: string; tags?: string[] };
     const container = await getContainer("trades");
     const id = `watchlist-${ticker}`;
@@ -87,6 +97,9 @@ export async function DELETE(req: NextRequest) {
     const tickerRaw = sp.get("ticker");
     if (!tickerRaw) return NextResponse.json({ error: "ticker query required" }, { status: 400 });
     const ticker = normTicker(tickerRaw);
+    if (!isValidEquityTicker(ticker)) {
+      return NextResponse.json({ error: "Invalid ticker" }, { status: 400 });
+    }
     const container = await getContainer("trades");
     const id = `watchlist-${ticker}`;
     await container.item(id, ticker).delete();

@@ -14,7 +14,7 @@ import { formatLocalTime, formatLocalTimeLong } from "@/lib/time";
 import styles from "./page.module.css";
 
 type Provider = "openai" | "gemini";
-type BotScope = "copytrade" | "earnings-trade" | "combined";
+type BotScope = "copytrade" | "earnings-trade" | "indicator-alert-bot" | "combined";
 
 interface Holding {
   ticker: string;
@@ -82,7 +82,8 @@ interface SummaryResponse {
 }
 
 const COPYTRADE_COLOR = "#1B2B65";
-const EARNINGS_COLOR  = "#F59E0B";
+const EARNINGS_COLOR = "#F59E0B";
+const INDICATOR_COLOR = "#7C3AED";
 
 const STATUS_COLORS: Record<string, string> = {
   submitted:          "#15803D",
@@ -155,18 +156,28 @@ export default function SummaryPage() {
   }
 
   const timelineSeries = useMemo(() => {
-    if (!data?.timeline) return { copytrade: [], earnings: [] };
-    const series: { copytrade: { x: number; y: number; row: TimelineRow }[]; earnings: { x: number; y: number; row: TimelineRow }[] } = {
+    if (!data?.timeline) return { copytrade: [], earnings: [], indicator: [] };
+    const series: {
+      copytrade: { x: number; y: number; row: TimelineRow }[];
+      earnings: { x: number; y: number; row: TimelineRow }[];
+      indicator: { x: number; y: number; row: TimelineRow }[];
+    } = {
       copytrade: [],
       earnings: [],
+      indicator: [],
     };
     for (const r of data.timeline) {
       if (!r.timestamp) continue;
       const x = Date.parse(r.timestamp);
       if (Number.isNaN(x)) continue;
-      const point = { x, y: r.bot === "copytrade" ? 1 : 2, row: r };
-      if (r.bot === "copytrade") series.copytrade.push(point);
-      else series.earnings.push(point);
+      const b = r.bot ?? "";
+      if (b === "copytrade") {
+        series.copytrade.push({ x, y: 1, row: r });
+      } else if (b === "indicator-alert-bot") {
+        series.indicator.push({ x, y: 3, row: r });
+      } else {
+        series.earnings.push({ x, y: 2, row: r });
+      }
     }
     return series;
   }, [data]);
@@ -184,9 +195,8 @@ export default function SummaryPage() {
           Transactions Summary
         </h1>
         <p className={styles.subtitle}>
-          AI-generated daily debrief grounded in what <strong>copytrade</strong> and <strong>earnings-trade</strong> saw
-          and did today. <strong>Indicator-alert-bot</strong> activity is in Bot Logs + alert states, not this summary
-          unless you extend the summarizer.
+          AI-generated daily debrief grounded in what <strong>Copy Trade</strong>, <strong>Earnings Trade</strong>, and{" "}
+          <strong>Indicator Alert</strong> (when scoped) did today — trades, signals, and open positions from Cosmos.
         </p>
       </div>
 
@@ -217,24 +227,37 @@ export default function SummaryPage() {
         <div className={styles.controlGroup}>
           <span className={styles.controlLabel}>
             Bot scope
-            <InfoTip text="Combined shows both bots side-by-side. Per-bot narrows the data window and recommendations to just that strategy." />
+            <InfoTip text="Combined includes every bot with activity today. A single-bot tab narrows trades, signals, and positions to that strategy only." />
           </span>
           <div className={styles.tabGroup}>
             <button
               className={`${styles.tab} ${bot === "combined" ? styles.tabActive : ""}`}
               onClick={() => setBot("combined")}
               disabled={loading}
-            >Combined</button>
+            >
+              Combined
+            </button>
             <button
               className={`${styles.tab} ${bot === "copytrade" ? styles.tabActive : ""}`}
               onClick={() => setBot("copytrade")}
               disabled={loading}
-            >copytrade</button>
+            >
+              Copy Trade
+            </button>
             <button
               className={`${styles.tab} ${bot === "earnings-trade" ? styles.tabActive : ""}`}
               onClick={() => setBot("earnings-trade")}
               disabled={loading}
-            >earnings-trade</button>
+            >
+              Earnings Trade
+            </button>
+            <button
+              className={`${styles.tab} ${bot === "indicator-alert-bot" ? styles.tabActive : ""}`}
+              onClick={() => setBot("indicator-alert-bot")}
+              disabled={loading}
+            >
+              Indicator Alert
+            </button>
           </div>
         </div>
 
@@ -450,10 +473,11 @@ export default function SummaryPage() {
           <Card className={styles.chartCard}>
             <div className={styles.cardTitle}>
               <BarChart3 size={16} /> Timeline · per bot
-              <InfoTip text="Each dot is a trade event from today. Color = outcome (green submitted, blue watched, red failed, gray skipped). Hover for politician + ticker. Two swimlanes: copytrade (lower), earnings-trade (upper)." />
+              <InfoTip text="Each dot is a trade event from today. Color = outcome (green submitted, blue watched, red failed, gray skipped). Swimlanes: Copy Trade (y=1), Earnings Trade (y=2), Indicator Alert (y=3). Legacy rows without bot field use Earnings Trade lane." />
             </div>
             <div className={styles.chartBox}>
-              {(timelineSeries.copytrade.length + timelineSeries.earnings.length) === 0 ? (
+              {(timelineSeries.copytrade.length + timelineSeries.earnings.length + timelineSeries.indicator.length) ===
+              0 ? (
                 <p className={styles.empty}>No transactions recorded today.</p>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
@@ -472,15 +496,18 @@ export default function SummaryPage() {
                     <YAxis
                       type="number"
                       dataKey="y"
-                      domain={[0, 3]}
-                      ticks={[1, 2]}
-                      tickFormatter={(v) => v === 1 ? "copytrade" : v === 2 ? "earnings-trade" : ""}
+                      domain={[0, 4]}
+                      ticks={[1, 2, 3]}
+                      tickFormatter={(v) =>
+                        v === 1 ? "Copy Trade" : v === 2 ? "Earnings Trade" : v === 3 ? "Indicator Alert" : ""
+                      }
                       tick={{ fontSize: 11, fill: "#6B7A99" }}
                       stroke="#CBD5E1"
                       width={120}
                     />
                     <ReferenceLine y={1} stroke="#E2E8F0" />
                     <ReferenceLine y={2} stroke="#E2E8F0" />
+                    <ReferenceLine y={3} stroke="#E2E8F0" />
                     <Tooltip
                       cursor={{ strokeDasharray: "3 3" }}
                       content={({ active, payload }) => {
@@ -504,7 +531,7 @@ export default function SummaryPage() {
                       wrapperStyle={{ fontSize: 12, paddingBottom: 6 }}
                     />
                     <Scatter
-                      name="copytrade"
+                      name="Copy Trade"
                       data={timelineSeries.copytrade}
                       fill={COPYTRADE_COLOR}
                       shape={(props: unknown) => {
@@ -514,13 +541,23 @@ export default function SummaryPage() {
                       }}
                     />
                     <Scatter
-                      name="earnings-trade"
+                      name="Earnings Trade"
                       data={timelineSeries.earnings}
                       fill={EARNINGS_COLOR}
                       shape={(props: unknown) => {
                         const { cx, cy, payload } = props as { cx: number; cy: number; payload: { row: TimelineRow } };
                         const color = STATUS_COLORS[payload.row.status ?? ""] ?? EARNINGS_COLOR;
                         return <circle cx={cx} cy={cy} r={5} fill={color} stroke={EARNINGS_COLOR} strokeWidth={1} />;
+                      }}
+                    />
+                    <Scatter
+                      name="Indicator Alert"
+                      data={timelineSeries.indicator}
+                      fill={INDICATOR_COLOR}
+                      shape={(props: unknown) => {
+                        const { cx, cy, payload } = props as { cx: number; cy: number; payload: { row: TimelineRow } };
+                        const color = STATUS_COLORS[payload.row.status ?? ""] ?? INDICATOR_COLOR;
+                        return <circle cx={cx} cy={cy} r={5} fill={color} stroke={INDICATOR_COLOR} strokeWidth={1} />;
                       }}
                     />
                   </ScatterChart>

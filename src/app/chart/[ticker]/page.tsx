@@ -141,7 +141,7 @@ export default function ChartPage() {
   return (
     <div className={styles.page}>
       <div className={styles.head}>
-        <Link href={`${base}/watchlist`} className={styles.back}>
+        <Link href="/watchlist" className={styles.back}>
           ← Watchlist
         </Link>
         <h1 className={styles.title}>{ticker}</h1>

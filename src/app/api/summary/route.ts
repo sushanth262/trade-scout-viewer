@@ -14,7 +14,7 @@ import { isLocalRequest, rejectExternal } from "@/lib/localhost-only";
  */
 
 type Provider = "openai" | "gemini";
-type BotScope = "copytrade" | "earnings-trade" | "combined";
+type BotScope = "copytrade" | "earnings-trade" | "indicator-alert-bot" | "combined";
 
 interface SummaryRequest {
   provider: Provider;
@@ -166,8 +166,9 @@ function buildPrompt(ctx: Awaited<ReturnType<typeof gatherContext>>, bot: BotSco
 
   return [
     "You are an analyst summarizing one trading day for a paper-trading bot system.",
-    "Two bots may be present: 'copytrade' (mirrors politicians' disclosed buys) and",
-    "'earnings-trade' (buys companies with upcoming earnings that politicians are buying).",
+    "Bots may include: 'copytrade' (mirrors politicians' disclosed buys),",
+    "'earnings-trade' (earnings + politician overlap screens), and",
+    "'indicator-alert-bot' (technical rules on the watchlist, trades after email approval).",
     "",
     `Scope: ${bot === "combined" ? "BOTH bots combined" : `only the '${bot}' bot`}`,
     `Report date (UTC): ${today}`,
@@ -295,7 +296,7 @@ export async function POST(req: NextRequest) {
   if (!["openai", "gemini"].includes(provider)) {
     return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
   }
-  if (!["copytrade", "earnings-trade", "combined"].includes(bot)) {
+  if (!["copytrade", "earnings-trade", "indicator-alert-bot", "combined"].includes(bot)) {
     return NextResponse.json({ error: `Unknown bot scope: ${bot}` }, { status: 400 });
   }
 
