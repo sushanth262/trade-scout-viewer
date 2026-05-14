@@ -11,6 +11,7 @@ import {
   Sparkles,
   Bookmark,
   Wallet2,
+  Joystick,
 } from "lucide-react";
 import styles from "./MobileNav.module.css";
 
@@ -24,6 +25,7 @@ const items = [
   { href: "/runs", label: "Runs", icon: LineChartIcon },
   { href: "/summary", label: "Summary", icon: Sparkles },
   { href: "/logs", label: "Logs", icon: ScrollText },
+  { href: "/bot-actions", label: "Bots", icon: Joystick },
 ];
 
 export default function MobileNav() {

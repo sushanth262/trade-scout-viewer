@@ -14,6 +14,7 @@ import {
   Settings,
   Bookmark,
   Wallet2,
+  Joystick,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/runs", label: "Job Runs", icon: LineChartIcon },
   { href: "/summary", label: "Transactions Summary", icon: Sparkles },
   { href: "/logs", label: "Bot Logs", icon: ScrollText },
+  { href: "/bot-actions", label: "Bot actions", icon: Joystick },
 ];
 
 export default function Sidebar() {

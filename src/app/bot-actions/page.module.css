@@ -1,0 +1,47 @@
+.page { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
+.title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.subtitle { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: -8px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cardTitle { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.cardMeta { font-size: 11px; color: var(--text-tertiary); margin-bottom: 14px; word-break: break-all; }
+
+.statusRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 14px;
+}
+.badge {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 4px 10px; border-radius: 999px;
+}
+.badgeRun { background: rgba(21, 128, 61, 0.12); color: var(--success-700); }
+.badgeStop { background: rgba(185, 28, 28, 0.1); color: var(--danger-700); }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  flex: 1; min-width: 100px; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border-light); cursor: pointer; transition: background 0.15s ease;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btnStart { background: var(--success-500); color: white; border-color: var(--success-600); }
+.btnStart:hover:not(:disabled) { background: var(--success-600); }
+.btnStop { background: white; color: var(--danger-700); border-color: rgba(185, 28, 28, 0.35); }
+.btnStop:hover:not(:disabled) { background: rgba(185, 28, 28, 0.06); }
+
+.err { color: var(--danger-700); font-size: 13px; }
+.loading { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 13px; }
+.spinner {
+  width: 18px; height: 18px; border: 2px solid var(--border-light);
+  border-top-color: var(--brand-500); border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.note {
+  font-size: 12px; color: var(--text-secondary); padding: 12px 14px;
+  background: #f8fafc; border-radius: 8px; border: 1px solid var(--border-light);
+}
