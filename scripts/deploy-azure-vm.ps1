@@ -28,6 +28,9 @@
 
 .PARAMETER SkipVmWriteDefaults
   Do not set LOG_ROOT or ALLOW_BROWSER_COSMOS_WRITES; use only values from .env.local (for custom VM layouts).
+
+.PARAMETER SkipVmLogVolume
+  Do not add -v for bot logs. By default the VM host folder is bind-mounted at the same path as LOG_ROOT so the container sees .log files on the host.
 #>
 param(
   [string]$ResourceGroup = "auravm",
@@ -38,7 +41,8 @@ param(
   [switch]$SkipBuildPush,
   [string]$VmLogRoot = "/home/azureuser/claudetrades",
   [string]$AllowBrowserCosmosWrites = "true",
-  [switch]$SkipVmWriteDefaults
+  [switch]$SkipVmWriteDefaults,
+  [switch]$SkipVmLogVolume
 )
 
 $ErrorActionPreference = "Stop"
@@ -98,6 +102,20 @@ if (-not $SkipVmWriteDefaults) {
   }
 }
 
+# Host path to bind into the container at the same path as LOG_ROOT (otherwise LOG_ROOT points at an empty in-container path).
+$logBindPath = $VmLogRoot.Trim()
+if ($SkipVmWriteDefaults -and $envPairs.Contains("LOG_ROOT")) {
+  $lr = $envPairs["LOG_ROOT"].Trim()
+  if ($lr -ne "") { $logBindPath = $lr }
+}
+
+$dockerVolLine = ""
+if (-not $SkipVmLogVolume) {
+  $dockerVolLine = "  -v ${logBindPath}:${logBindPath} \" + [Environment]::NewLine
+  Write-Host "=== VM log bind mount ===" -ForegroundColor Cyan
+  Write-Host "    -v ${logBindPath}:${logBindPath}"
+}
+
 $sb = New-Object System.Text.StringBuilder
 foreach ($key in $envPairs.Keys) {
   if ($key -eq "GITHUB_TOKEN") { continue }
@@ -118,7 +136,7 @@ docker pull ghcr.io/sushanth262/trade-scout-viewer:latest
 docker stop trade-scout-viewer 2>/dev/null || true
 docker rm trade-scout-viewer 2>/dev/null || true
 docker run -d --name trade-scout-viewer --restart unless-stopped \
-  -p 3001:3000 \
+$dockerVolLine  -p 3001:3000 \
   --env-file /tmp/trade-scout-viewer.env \
   ghcr.io/sushanth262/trade-scout-viewer:latest
 shred -u /tmp/trade-scout-viewer.env 2>/dev/null || rm -f /tmp/trade-scout-viewer.env
