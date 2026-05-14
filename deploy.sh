@@ -71,12 +71,31 @@ echo "--- Deploying container ---"
 docker stop trade-scout-viewer 2>/dev/null || true
 docker rm trade-scout-viewer 2>/dev/null || true
 
+# Optional runtime secrets (pass through when set in the deploy environment)
+DOCKER_ENV=(
+  -e "COSMOS_ENDPOINT=${COSMOS_ENDPOINT}"
+  -e "COSMOS_KEY=${COSMOS_KEY}"
+)
+optional_env() {
+  local n=$1
+  local v="${!n:-}"
+  if [ -n "${v}" ]; then
+    DOCKER_ENV+=(-e "${n}=${v}")
+  fi
+}
+for n in \
+  ALPACA_API_KEY ALPACA_API_SECRET ALPACA_BASE_URL ALPACA_DATA_URL \
+  QUIVER_API_KEY OPENAI_API_KEY GEMINI_API_KEY OPENAI_MODEL GEMINI_MODEL \
+  ALERT_HMAC_SECRET ALERT_BASE_URL ALERT_EMAIL_TO SENDGRID_API_KEY ALERT_FROM_EMAIL \
+  LOG_ROOT; do
+  optional_env "${n}"
+done
+
 docker run -d \
   --name trade-scout-viewer \
   --restart unless-stopped \
   -p 3001:3000 \
-  -e COSMOS_ENDPOINT="${COSMOS_ENDPOINT}" \
-  -e COSMOS_KEY="${COSMOS_KEY}" \
+  "${DOCKER_ENV[@]}" \
   "${IMAGE}"
 
 echo ""
