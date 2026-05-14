@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Card from "@/components/ui/Card";
 import StatusChip from "@/components/ui/StatusChip";
 import InfoTip from "@/components/ui/InfoTip";
@@ -27,6 +27,9 @@ interface Position {
   size_label?: string;
   /** "alpaca" when row is filled from Alpaca API only (not bot trade log). */
   source?: string;
+  /** From Alpaca when available (USD). */
+  market_value?: number;
+  unrealized_pl?: number;
 }
 
 type ExchangePosRes = {
@@ -38,6 +41,8 @@ type ExchangePosRes = {
     current_price: string;
     unrealized_plpc: string;
     market_value: string;
+    unrealized_pl?: string;
+    cost_basis?: string;
   }[];
   closedSells?: { symbol: string; qty: string; exit_price: number; filled_at: string | null }[];
 };
@@ -51,6 +56,45 @@ function parsePlc(s: string | undefined): number | undefined {
   if (!Number.isFinite(u)) return undefined;
   if (Math.abs(u) <= 1 && u !== 0) return u * 100;
   return u;
+}
+
+function parseQty(q: string | undefined): number {
+  const n = parseFloat(String(q ?? "").replace(/,/g, ""));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/** Best USD notional for an open row (Alpaca market value, else qty×price, else qty×entry). */
+function openNotionalUsd(p: Position): number | null {
+  if (p.market_value != null && Number.isFinite(p.market_value)) return p.market_value;
+  const q = parseQty(p.qty);
+  if (!Number.isFinite(q) || q === 0) return null;
+  if (p.current_price != null && Number.isFinite(p.current_price)) return q * p.current_price;
+  if (p.entry_price != null && Number.isFinite(p.entry_price)) return q * p.entry_price;
+  return null;
+}
+
+function sumOpenTotals(rows: Position[]): {
+  notional: number;
+  notionalRows: number;
+  unrealized: number;
+  unrealizedRows: number;
+} {
+  let notional = 0;
+  let notionalRows = 0;
+  let unrealized = 0;
+  let unrealizedRows = 0;
+  for (const p of rows) {
+    const n = openNotionalUsd(p);
+    if (n != null) {
+      notional += n;
+      notionalRows++;
+    }
+    if (p.unrealized_pl != null && Number.isFinite(p.unrealized_pl)) {
+      unrealized += p.unrealized_pl;
+      unrealizedRows++;
+    }
+  }
+  return { notional, notionalRows, unrealized, unrealizedRows };
 }
 
 export default function PositionsPage() {
@@ -159,6 +203,8 @@ export default function PositionsPage() {
           const entry = parseFloat(ap.avg_entry_price) || undefined;
           const cur = parseFloat(ap.current_price) || undefined;
           const plc = parsePlc(ap.unrealized_plpc);
+          const mv = parseFloat(ap.market_value);
+          const upl = parseFloat(ap.unrealized_pl ?? "");
           posMap.set(sym, {
             ticker: sym,
             bot: "alpaca",
@@ -168,6 +214,8 @@ export default function PositionsPage() {
             current_gain_pct: plc,
             status: "open",
             source: "alpaca",
+            market_value: Number.isFinite(mv) ? mv : undefined,
+            unrealized_pl: Number.isFinite(upl) ? upl : undefined,
           });
         }
       }
@@ -187,6 +235,18 @@ export default function PositionsPage() {
             bot: "alpaca",
             source: "alpaca",
           });
+        }
+      }
+
+      if (alpacaMerge && Array.isArray(exRes.open)) {
+        for (const ap of exRes.open) {
+          const sym = up(ap.symbol);
+          const pos = posMap.get(sym);
+          if (!pos || pos.status !== "open") continue;
+          const mv = parseFloat(ap.market_value);
+          const upl = parseFloat(ap.unrealized_pl ?? "");
+          if (Number.isFinite(mv)) pos.market_value = mv;
+          if (Number.isFinite(upl)) pos.unrealized_pl = upl;
         }
       }
 
@@ -210,6 +270,7 @@ export default function PositionsPage() {
 
   const openPos = positions.filter((p) => p.status === "open");
   const closedPos = positions.filter((p) => p.status === "closed");
+  const openTotals = useMemo(() => sumOpenTotals(openPos), [openPos]);
 
   return (
     <div className={styles.page}>
@@ -252,6 +313,45 @@ export default function PositionsPage() {
               <RefreshCw size={12} style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }} /> Refresh
             </button>
           </h2>
+          {openPos.length > 0 && (
+            <Card className={styles.totalsCard}>
+              <div className={styles.totalsRow}>
+                <div className={styles.totalsBlock}>
+                  <span className={styles.totalsLabel}>Open total (market)</span>
+                  <span className={styles.totalsValue}>
+                    $
+                    {openTotals.notional.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                  {openTotals.notionalRows < openPos.length ? (
+                    <span className={styles.totalsHint}>
+                      Sum from {openTotals.notionalRows} of {openPos.length} rows with qty + price (or Alpaca market
+                      value)
+                    </span>
+                  ) : null}
+                </div>
+                {openTotals.unrealizedRows > 0 ? (
+                  <div className={styles.totalsBlock}>
+                    <span className={styles.totalsLabel}>Unrealized P&L (Alpaca)</span>
+                    <span
+                      className={`${styles.totalsValue} ${
+                        openTotals.unrealized >= 0 ? styles.totalsPlPos : styles.totalsPlNeg
+                      }`}
+                    >
+                      {openTotals.unrealized >= 0 ? "+" : ""}$
+                      {openTotals.unrealized.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                    <span className={styles.totalsHint}>{openTotals.unrealizedRows} position(s) with Alpaca P&L</span>
+                  </div>
+                ) : null}
+              </div>
+            </Card>
+          )}
           {openPos.length === 0 ? (
             <Card>
               <p className={styles.emptyText}>No open positions</p>
