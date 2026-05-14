@@ -18,6 +18,16 @@
 
 .PARAMETER SkipBuildPush
   Only pull/restart the container on the VM (image must already be on GHCR).
+
+.PARAMETER VmLogRoot
+  LOG_ROOT inside the Linux container (bot .log files). Default: /home/azureuser/claudetrades.
+
+.PARAMETER AllowBrowserCosmosWrites
+  Sets ALLOW_BROWSER_COSMOS_WRITES for the container so the HTTPS UI can save watchlist and alert rules.
+  Default: true. Pass empty string to omit (then use VIEWER_WRITE_TOKEN + rebuild instead).
+
+.PARAMETER SkipVmWriteDefaults
+  Do not set LOG_ROOT or ALLOW_BROWSER_COSMOS_WRITES; use only values from .env.local (for custom VM layouts).
 #>
 param(
   [string]$ResourceGroup = "auravm",
@@ -25,7 +35,10 @@ param(
   [string]$AlertBaseUrl = "https://aura-rca.northcentralus.cloudapp.azure.com/scout",
   [string]$NextBasePath = "/scout",
   [switch]$SkipAlertBaseUrlOverride,
-  [switch]$SkipBuildPush
+  [switch]$SkipBuildPush,
+  [string]$VmLogRoot = "/home/azureuser/claudetrades",
+  [string]$AllowBrowserCosmosWrites = "true",
+  [switch]$SkipVmWriteDefaults
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,6 +84,18 @@ if ($envPairs.Contains("QUIVER_TOKEN") -and -not $envPairs.Contains("QUIVER_API_
 
 if (-not $SkipAlertBaseUrlOverride) {
   $envPairs["ALERT_BASE_URL"] = $AlertBaseUrl.TrimEnd("/")
+}
+
+if (-not $SkipVmWriteDefaults) {
+  $envPairs["LOG_ROOT"] = $VmLogRoot.Trim()
+  if ($AllowBrowserCosmosWrites -ne "") {
+    $envPairs["ALLOW_BROWSER_COSMOS_WRITES"] = $AllowBrowserCosmosWrites.Trim()
+  }
+  Write-Host "=== VM container defaults ===" -ForegroundColor Cyan
+  Write-Host "    LOG_ROOT=$($envPairs['LOG_ROOT'])"
+  if ($envPairs.Contains("ALLOW_BROWSER_COSMOS_WRITES")) {
+    Write-Host "    ALLOW_BROWSER_COSMOS_WRITES=$($envPairs['ALLOW_BROWSER_COSMOS_WRITES'])"
+  }
 }
 
 $sb = New-Object System.Text.StringBuilder
