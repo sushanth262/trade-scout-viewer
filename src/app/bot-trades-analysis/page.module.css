@@ -53,11 +53,15 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.refreshBtn :global(.spin),
+.refreshBtn .spin {
+  animation: spin 0.8s linear infinite;
+}
 
 .sectionTitle {
   font-size: 17px;
   font-weight: 700;
-  margin: 0 0 12px;
+  margin: 8px 0 12px;
 }
 
 .botCards {

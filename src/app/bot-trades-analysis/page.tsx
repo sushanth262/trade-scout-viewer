@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import BotChip from "@/components/ui/BotChip";
 import { fetchApi } from "@/lib/api";
 import type { BotPositionRow } from "@/app/api/bot-trades-analysis/route";
+import BotPerformanceCharts from "@/components/bot-analysis/BotPerformanceCharts";
 import styles from "./page.module.css";
 
 type Group = { bot: string; positions: BotPositionRow[] };
@@ -64,6 +65,10 @@ export default function BotTradesAnalysisPage() {
           Refresh
         </button>
       </div>
+
+      {!loading && groups.length > 0 && <BotPerformanceCharts groups={groups} />}
+
+      <h2 className={styles.sectionTitle}>Holdings by bot</h2>
 
       {loading && groups.length === 0 ? (
         <div className={styles.loading}>
