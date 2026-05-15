@@ -5,20 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { AlertRule, AlertState } from "@/lib/cosmos";
 import { viewerWriteHeaders } from "@/lib/viewer-write-client";
+import { LightweightStockChart } from "@/components/chart/LightweightStockChart";
 import styles from "./page.module.css";
-
-function TradingViewEmbed({ ticker }: { ticker: string }) {
-  const sym = ticker.includes(":") ? ticker : `NASDAQ:${ticker}`;
-  const src = `https://www.tradingview.com/widgetembed/?frameElementId=tv_${ticker}&symbol=${encodeURIComponent(
-    sym,
-  )}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=1f2937&studies=%5B%7B%22id%22%3A%22MAExp%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A20%7D%7D%2C%7B%22id%22%3A%22MAExp%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%7D%2C%7B%22id%22%3A%22MAExp%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A200%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%2C%7B%22id%22%3A%22MACD%40tv-basicstudies%22%2C%22inputs%22%3A%7B%7D%7D%2C%7B%22id%22%3A%22Volume%40tv-basicstudies%22%2C%22inputs%22%3A%7B%7D%7D%2C%7B%22id%22%3A%22ATR%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%2C%7B%22id%22%3A%22MFI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D&theme=dark&style=1&timezone=America%2FNew_York`;
-
-  return (
-    <div className={styles.tvWrap}>
-      <iframe className={styles.tvFrame} title={`Chart ${ticker}`} src={src} />
-    </div>
-  );
-}
 
 type Tab = "rules" | "backtest";
 
@@ -30,6 +18,8 @@ export default function ChartPage() {
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [states, setStates] = useState<AlertState[]>([]);
   const [lookback, setLookback] = useState(90);
+  const [chartTimeframe, setChartTimeframe] = useState<AlertRule["timeframe"]>("1D");
+  const [chartRefresh, setChartRefresh] = useState(0);
   const [btResult, setBtResult] = useState<object | null>(null);
   const [busy, setBusy] = useState(false);
   const [ruleErr, setRuleErr] = useState<string | null>(null);
@@ -85,6 +75,7 @@ export default function ChartPage() {
       return;
     }
     await loadRules();
+    setChartRefresh((n) => n + 1);
   };
 
   const toggleRule = async (id: string, enabled: boolean) => {
@@ -99,6 +90,7 @@ export default function ChartPage() {
       return;
     }
     await loadRules();
+    setChartRefresh((n) => n + 1);
   };
 
   const deleteRule = async (id: string) => {
@@ -112,6 +104,7 @@ export default function ChartPage() {
       return;
     }
     await loadRules();
+    setChartRefresh((n) => n + 1);
   };
 
   const runBacktest = async () => {
@@ -147,7 +140,47 @@ export default function ChartPage() {
         <h1 className={styles.title}>{ticker}</h1>
       </div>
 
-      <TradingViewEmbed ticker={ticker} />
+      <div className={styles.chartControls}>
+        <label className={styles.chartLabel}>
+          Chart timeframe
+          <select
+            value={chartTimeframe}
+            onChange={(e) => {
+              setChartTimeframe(e.target.value as AlertRule["timeframe"]);
+              setChartRefresh((n) => n + 1);
+            }}
+          >
+            <option value="1D">1D</option>
+            <option value="1H">1H</option>
+            <option value="15Min">15Min</option>
+          </select>
+        </label>
+        <label className={styles.chartLabel}>
+          History
+          <select
+            value={lookback}
+            onChange={(e) => {
+              setLookback(Number(e.target.value));
+              setChartRefresh((n) => n + 1);
+            }}
+          >
+            <option value={90}>90 days</option>
+            <option value={180}>180 days</option>
+            <option value={365}>1 year</option>
+          </select>
+        </label>
+      </div>
+      <LightweightStockChart
+        ticker={ticker}
+        basePath={base}
+        timeframe={chartTimeframe}
+        lookbackDays={lookback}
+        refreshKey={chartRefresh}
+      />
+      <p className={styles.muted}>
+        OHLCV from Alpaca (Yahoo daily fallback). EMAs and trigger arrows are computed from your alert rules, not
+        TradingView.
+      </p>
 
       <div className={styles.tabs}>
         <button type="button" className={tab === "rules" ? styles.tabOn : styles.tab} onClick={() => setTab("rules")}>

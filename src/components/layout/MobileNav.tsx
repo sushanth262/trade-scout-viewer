@@ -12,12 +12,16 @@ import {
   Bookmark,
   Wallet2,
   Joystick,
+  ClipboardList,
+  PieChart,
 } from "lucide-react";
 import styles from "./MobileNav.module.css";
 
 const items = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/trades", label: "Trades", icon: ArrowRightLeft },
+  { href: "/orders", label: "Orders", icon: ClipboardList },
+  { href: "/bot-trades-analysis", label: "Bot P&L", icon: PieChart },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
   { href: "/watchlist", label: "Watch", icon: Bookmark },

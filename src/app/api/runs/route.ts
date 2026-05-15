@@ -33,6 +33,9 @@ export interface RunRecord {
   buyRated: number;
   // Short human summary for tooltip
   summary: string;
+  /** ok | below_min_balance | account_unreachable | paused */
+  balanceLimit?: string;
+  portfolioValue?: number;
 }
 
 interface AggregateBuckets {
@@ -59,6 +62,36 @@ function parseTimestamp(line: string): string | null {
   if (!m) return null;
   // Normalize "," → "." and add T to make ISO-ish
   return m[1].replace(",", ".").replace(" ", "T");
+}
+
+function parseBalanceFromText(text: string): Pick<RunRecord, "balanceLimit" | "portfolioValue"> {
+  const lim = text.match(/balance_limit=(\w+)/);
+  const port = text.match(/portfolio=\$?([\d,]+\.?\d*)/);
+  return {
+    balanceLimit: lim?.[1],
+    portfolioValue: port ? parseFloat(port[1].replace(/,/g, "")) : undefined,
+  };
+}
+
+function parseBalanceFromBuffer(buffer: string[]): Pick<RunRecord, "balanceLimit" | "portfolioValue"> {
+  for (let i = buffer.length - 1; i >= 0; i--) {
+    const hit = parseBalanceFromText(buffer[i]);
+    if (hit.balanceLimit) return hit;
+  }
+  return {};
+}
+
+function balanceSummarySuffix(bal: Pick<RunRecord, "balanceLimit" | "portfolioValue">): string {
+  if (!bal.balanceLimit) return "";
+  const pv =
+    bal.portfolioValue != null && Number.isFinite(bal.portfolioValue)
+      ? ` · portfolio $${bal.portfolioValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+      : "";
+  if (bal.balanceLimit === "ok") return ` · balance OK${pv}`;
+  if (bal.balanceLimit === "below_min_balance") return ` · trading blocked (below $40k min)${pv}`;
+  if (bal.balanceLimit === "account_unreachable") return " · balance check failed";
+  if (bal.balanceLimit === "paused") return " · schedule paused";
+  return ` · balance ${bal.balanceLimit}${pv}`;
 }
 
 async function resolveLogPath(job: string): Promise<string | null> {
@@ -125,10 +158,14 @@ function parseCopytradeRuns(raw: string): RunRecord[] {
         if (cm) confirmed = Math.max(confirmed, parseInt(cm[1], 10));
       }
 
-      const status: "success" | "fail" = (submitted + watched > 0 || failed === 0) ? "success" : "fail";
+      const bal = { ...parseBalanceFromText(line), ...parseBalanceFromBuffer(buffer) };
+      const blocked = bal.balanceLimit === "below_min_balance" || bal.balanceLimit === "account_unreachable";
+      const status: "success" | "fail" =
+        blocked ? "fail" : submitted + watched > 0 || failed === 0 ? "success" : "fail";
       const summary =
         `cycle: submitted ${submitted} · watched ${watched} · failed ${failed} ` +
-        `(Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})`;
+        `(Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})` +
+        balanceSummarySuffix(bal);
 
       runs.push({
         job: "copytrade",
@@ -138,6 +175,7 @@ function parseCopytradeRuns(raw: string): RunRecord[] {
         quiver, capitolTrades, confirmed,
         screened: 0, buyRated: 0,
         summary,
+        ...bal,
       });
       buffer = [];
     }
@@ -198,10 +236,20 @@ function parseEarningsTradeRuns(raw: string): RunRecord[] {
         if (/\bERROR\b/.test(b) && !/HTTP Error 404/.test(b)) failed += 1;
       }
 
-      const status: "success" | "fail" = (screened > 0 || emptyMatch) ? "success" : (failed > 0 ? "fail" : "success");
-      const summary = screenMatch
-        ? `screened ${screened} · ${buyRated} BUY-rated (Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})`
-        : `no upcoming earnings to screen (Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})`;
+      const bal = { ...parseBalanceFromText(line), ...parseBalanceFromBuffer(buffer) };
+      const blocked = bal.balanceLimit === "below_min_balance" || bal.balanceLimit === "account_unreachable";
+      const status: "success" | "fail" = blocked
+        ? "fail"
+        : screened > 0 || emptyMatch
+          ? "success"
+          : failed > 0
+            ? "fail"
+            : "success";
+      const summary = (
+        screenMatch
+          ? `screened ${screened} · ${buyRated} BUY-rated (Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})`
+          : `no upcoming earnings to screen (Q:${quiver} CT:${capitolTrades} confirmed:${confirmed})`
+      ) + balanceSummarySuffix(bal);
 
       runs.push({
         job: "earnings-trade",
@@ -211,6 +259,7 @@ function parseEarningsTradeRuns(raw: string): RunRecord[] {
         quiver, capitolTrades, confirmed,
         screened, buyRated,
         summary,
+        ...bal,
       });
       buffer = [];
     }
@@ -234,7 +283,7 @@ function parseIndicatorAlertRuns(raw: string): RunRecord[] {
     const tsLine = parseTimestamp(line);
     if (tsLine) lastKnownTs = tsLine;
 
-    const cycleMatch = line.match(/Cycle done \(poll interval config: (\d+) min\)\.\s*$/);
+    const cycleMatch = line.match(/Cycle done \(poll interval config: (\d+) min\)\./);
     if (!cycleMatch) continue;
 
     const ts = parseTimestamp(line) ?? lastKnownTs ?? new Date().toISOString();
@@ -247,12 +296,14 @@ function parseIndicatorAlertRuns(raw: string): RunRecord[] {
       if (/\bERROR\b/.test(b) && !/HTTP Error 404/.test(b)) failed += 1;
     }
 
-    const status: "success" | "fail" = failed > 0 ? "fail" : "success";
+    const bal = { ...parseBalanceFromText(line), ...parseBalanceFromBuffer(buffer) };
+    const blocked = bal.balanceLimit === "below_min_balance" || bal.balanceLimit === "account_unreachable";
+    const status: "success" | "fail" = blocked ? "fail" : failed > 0 ? "fail" : "success";
     const pollMin = cycleMatch[1] ?? "?";
     const summary =
-      fired || executed
+      (fired || executed
         ? `alerts fired ${fired} · orders executed ${executed} · poll ${pollMin} min`
-        : `cycle ok (poll ${pollMin} min)`;
+        : `cycle ok (poll ${pollMin} min)`) + balanceSummarySuffix(bal);
 
     runs.push({
       job: "indicator-alert-bot",
@@ -267,6 +318,7 @@ function parseIndicatorAlertRuns(raw: string): RunRecord[] {
       screened: 0,
       buyRated: 0,
       summary,
+      ...bal,
     });
     buffer = [];
   }

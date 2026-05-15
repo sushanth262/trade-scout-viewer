@@ -15,12 +15,16 @@ import {
   Bookmark,
   Wallet2,
   Joystick,
+  ClipboardList,
+  PieChart,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/trades", label: "Trade Log", icon: ArrowRightLeft },
+  { href: "/orders", label: "Orders", icon: ClipboardList },
+  { href: "/bot-trades-analysis", label: "Bot Trades Analysis", icon: PieChart },
   { href: "/signals", label: "Signals", icon: Radar },
   { href: "/positions", label: "Positions", icon: TrendingUp },
   { href: "/balances", label: "Balances", icon: Wallet2 },

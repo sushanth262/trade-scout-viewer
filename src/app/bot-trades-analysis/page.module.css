@@ -1,0 +1,133 @@
+.page {
+  padding: 0 0 48px;
+  max-width: 1280px;
+}
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 20px;
+  line-height: 1.45;
+}
+.crossLink {
+  font-size: 14px;
+  margin: -8px 0 24px;
+}
+.crossLink a {
+  color: var(--brand-600, #2563eb);
+  font-weight: 600;
+  text-decoration: none;
+}
+.crossLink a:hover {
+  text-decoration: underline;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.refreshBtn:hover {
+  background: var(--brand-50);
+  border-color: var(--brand-500);
+}
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.botCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.botCard {
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: white;
+}
+.botCard h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.totals {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.posTable {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+}
+.posTable th,
+.posTable td {
+  padding: 6px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+.posEmpty {
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+}
+
+.loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--brand-500);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.positive {
+  color: #15803d;
+}
+.negative {
+  color: #b91c1c;
+}

@@ -3,6 +3,12 @@ import styles from "./BotChip.module.css";
 type BotKey = "copytrade" | "earnings-trade" | "earnings" | string | null | undefined;
 
 const palette: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  "alpaca-only": {
+    bg: "#F1F5F9",
+    text: "#334155",
+    border: "#CBD5E1",
+    label: "alpaca-only",
+  },
   copytrade: {
     bg: "#EEF2FF",
     text: "#1B2B65",

@@ -1,0 +1,62 @@
+.wrap {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-medium);
+  background: #131722;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #1e222d;
+  border-bottom: 1px solid #2a2e39;
+  font-size: 12px;
+  color: #d1d4dc;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #2a2e39;
+  text-transform: capitalize;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #9ca3af;
+}
+
+.emaFast {
+  color: #d9f854;
+}
+
+.emaSlow {
+  color: #2962ff;
+}
+
+.triggerHint {
+  color: #26a69a;
+}
+
+.firedHint {
+  color: #f59e0b;
+}
+
+.chart {
+  width: 100%;
+  min-height: 520px;
+}
+
+.err {
+  margin: 0;
+  padding: 8px 12px;
+  color: #ef5350;
+  font-size: 13px;
+  background: rgba(239, 83, 80, 0.08);
+}
