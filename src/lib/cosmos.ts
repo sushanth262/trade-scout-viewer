@@ -176,7 +176,12 @@ export interface WatchlistEntry {
   added_at: string;
 }
 
-export type AlertRuleType = "ema_crossover" | "rsi_threshold" | "macd_cross" | "price_level";
+export type AlertRuleType =
+  | "ema_crossover"
+  | "ema_price"
+  | "rsi_threshold"
+  | "macd_cross"
+  | "price_level";
 export type AlertTimeframe = "1D" | "1H" | "15Min";
 
 /** Configurable technical alert (partition: ticker). */

@@ -48,6 +48,26 @@
   color: #f59e0b;
 }
 
+.note {
+  color: #94a3b8;
+  font-size: 11px;
+  max-width: 280px;
+}
+
+.warn {
+  color: #fbbf24;
+  font-size: 11px;
+  max-width: 360px;
+}
+
+.rsiHint {
+  color: #c084fc;
+}
+
+.macdHint {
+  color: #38bdf8;
+}
+
 .chart {
   width: 100%;
   min-height: 520px;

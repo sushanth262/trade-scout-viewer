@@ -6,6 +6,9 @@ import { useParams } from "next/navigation";
 import type { AlertRule, AlertState } from "@/lib/cosmos";
 import { viewerWriteHeaders } from "@/lib/viewer-write-client";
 import { LightweightStockChart } from "@/components/chart/LightweightStockChart";
+import RuleBuilderForm from "@/components/chart/RuleBuilderForm";
+import { defaultParamsForType } from "@/lib/alert-rule-presets";
+import type { BarSourcePreference } from "@/lib/market-bars";
 import styles from "./page.module.css";
 
 type Tab = "rules" | "backtest";
@@ -19,6 +22,7 @@ export default function ChartPage() {
   const [states, setStates] = useState<AlertState[]>([]);
   const [lookback, setLookback] = useState(90);
   const [chartTimeframe, setChartTimeframe] = useState<AlertRule["timeframe"]>("1D");
+  const [barSource, setBarSource] = useState<BarSourcePreference>("auto");
   const [chartRefresh, setChartRefresh] = useState(0);
   const [btResult, setBtResult] = useState<object | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,7 +30,9 @@ export default function ChartPage() {
   const [name, setName] = useState("EMA cross");
   const [ruleType, setRuleType] = useState<AlertRule["rule_type"]>("ema_crossover");
   const [timeframe, setTimeframe] = useState<AlertRule["timeframe"]>("1D");
-  const [paramsJson, setParamsJson] = useState('{"fast":20,"slow":50,"direction":"bullish_cross"}');
+  const [ruleParams, setRuleParams] = useState<Record<string, unknown>>(
+    defaultParamsForType("ema_crossover"),
+  );
 
   const loadRules = useCallback(async () => {
     if (!ticker) return;
@@ -42,15 +48,30 @@ export default function ChartPage() {
     loadRules();
   }, [loadRules]);
 
+  /** Saved rules default to 1D — align chart timeframe so overlays/triggers render. */
+  useEffect(() => {
+    const enabled = rules.filter((r) => r.enabled !== false);
+    if (!enabled.length) return;
+    const onChart = enabled.filter((r) => r.timeframe === chartTimeframe);
+    if (onChart.length > 0) return;
+    const counts = new Map<AlertRule["timeframe"], number>();
+    for (const r of enabled) {
+      counts.set(r.timeframe, (counts.get(r.timeframe) ?? 0) + 1);
+    }
+    let best: AlertRule["timeframe"] = enabled[0].timeframe;
+    let bestN = 0;
+    for (const [tf, n] of counts) {
+      if (n > bestN) {
+        bestN = n;
+        best = tf;
+      }
+    }
+    setChartTimeframe(best);
+    setChartRefresh((n) => n + 1);
+  }, [rules, chartTimeframe]);
+
   const addRule = async () => {
     setRuleErr(null);
-    let params: Record<string, unknown> = {};
-    try {
-      params = JSON.parse(paramsJson) as Record<string, unknown>;
-    } catch {
-      setRuleErr("Invalid JSON for params");
-      return;
-    }
     const res = await fetch(`${base}/api/alert-rules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...viewerWriteHeaders() },
@@ -58,7 +79,7 @@ export default function ChartPage() {
         ticker,
         name,
         rule_type: ruleType,
-        params,
+        params: ruleParams,
         timeframe,
         enabled: true,
       }),
@@ -156,6 +177,20 @@ export default function ChartPage() {
           </select>
         </label>
         <label className={styles.chartLabel}>
+          Bar source
+          <select
+            value={barSource}
+            onChange={(e) => {
+              setBarSource(e.target.value as BarSourcePreference);
+              setChartRefresh((n) => n + 1);
+            }}
+          >
+            <option value="auto">Auto (Alpaca → Yahoo)</option>
+            <option value="alpaca">Alpaca only</option>
+            <option value="yahoo">Yahoo only</option>
+          </select>
+        </label>
+        <label className={styles.chartLabel}>
           History
           <select
             value={lookback}
@@ -167,6 +202,7 @@ export default function ChartPage() {
             <option value={90}>90 days</option>
             <option value={180}>180 days</option>
             <option value={365}>1 year</option>
+            <option value={730}>2 years (EMA 200)</option>
           </select>
         </label>
       </div>
@@ -175,11 +211,13 @@ export default function ChartPage() {
         basePath={base}
         timeframe={chartTimeframe}
         lookbackDays={lookback}
+        barSource={barSource}
         refreshKey={chartRefresh}
+        rules={rules}
       />
       <p className={styles.muted}>
-        OHLCV from Alpaca (Yahoo daily fallback). EMAs and trigger arrows are computed from your alert rules, not
-        TradingView.
+        OHLCV from Alpaca or Yahoo (intraday supported on Yahoo). Chart draws EMA lines per rule, plus RSI and MACD
+        panes when those rule types are enabled. Triggers match <strong>indicator-alert-bot</strong>.
       </p>
 
       <div className={styles.tabs}>
@@ -223,36 +261,19 @@ export default function ChartPage() {
             ))}
           </ul>
           <h3 className={styles.h3}>Add rule</h3>
-          <div className={styles.form}>
-            <label>
-              Name
-              <input value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label>
-              Type
-              <select value={ruleType} onChange={(e) => setRuleType(e.target.value as AlertRule["rule_type"])}>
-                <option value="ema_crossover">EMA crossover</option>
-                <option value="rsi_threshold">RSI threshold</option>
-                <option value="macd_cross">MACD cross</option>
-                <option value="price_level">Price level</option>
-              </select>
-            </label>
-            <label>
-              Timeframe
-              <select value={timeframe} onChange={(e) => setTimeframe(e.target.value as AlertRule["timeframe"])}>
-                <option value="1D">1D</option>
-                <option value="1H">1H</option>
-                <option value="15Min">15Min</option>
-              </select>
-            </label>
-            <label className={styles.full}>
-              Params (JSON)
-              <textarea rows={4} value={paramsJson} onChange={(e) => setParamsJson(e.target.value)} />
-            </label>
-            <button type="button" className={styles.primary} onClick={addRule}>
-              Save rule
-            </button>
-          </div>
+          <RuleBuilderForm
+            name={name}
+            ruleType={ruleType}
+            timeframe={timeframe}
+            params={ruleParams}
+            onNameChange={setName}
+            onRuleTypeChange={setRuleType}
+            onTimeframeChange={setTimeframe}
+            onParamsChange={setRuleParams}
+          />
+          <button type="button" className={styles.primary} onClick={addRule}>
+            Save rule
+          </button>
 
           <h3 className={styles.h3}>Recent alert states</h3>
           <ul className={styles.states}>

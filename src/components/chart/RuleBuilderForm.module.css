@@ -1,0 +1,80 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.presetsLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  width: 100%;
+}
+
+.presetBtn {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-medium);
+  background: var(--brand-50, #eff6ff);
+  cursor: pointer;
+}
+
+.presetBtn:hover {
+  border-color: var(--brand-500);
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.form input,
+.form select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.jsonToggle {
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--brand-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.jsonLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.jsonLabel textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-medium);
+}

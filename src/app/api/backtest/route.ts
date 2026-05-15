@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { AlertRule } from "@/lib/cosmos";
 import { ATR, MFI } from "technicalindicators";
 import { fetchMarketBars } from "@/lib/market-bars";
-import { computeChartSeries } from "@/lib/alert-rule-eval";
+import { computeChartSeries, normalizeAlertRule } from "@/lib/alert-rule-eval";
 
 export const runtime = "nodejs";
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const ticker = body.ticker.toUpperCase();
-    const rules = body.rules.filter((r) => r.enabled !== false);
+    const rules = body.rules.filter((r) => r.enabled !== false).map(normalizeAlertRule);
     const lookback = Math.min(Math.max(7, body.lookback_days), 365 * 5);
 
     const { bars, source } = await fetchMarketBars(ticker, "1D", lookback);

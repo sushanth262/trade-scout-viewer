@@ -10,6 +10,7 @@ export type Bar = {
 };
 
 export type BarSource = "alpaca" | "yahoo";
+export type BarSourcePreference = "auto" | "alpaca" | "yahoo";
 
 export function mapTimeframeToAlpaca(tf: string): string {
   const m: Record<string, string> = {
@@ -18,6 +19,33 @@ export function mapTimeframeToAlpaca(tf: string): string {
     "15Min": "15Min",
   };
   return m[tf] ?? "1Day";
+}
+
+function mapTimeframeToYahooInterval(tf: string): string {
+  const m: Record<string, string> = {
+    "1D": "1d",
+    "1H": "60m",
+    "15Min": "15m",
+  };
+  return m[tf] ?? "1d";
+}
+
+function yahooRangeFor(lookbackDays: number, timeframe: string): string {
+  if (timeframe === "1D") {
+    if (lookbackDays <= 60) return "3mo";
+    if (lookbackDays <= 180) return "6mo";
+    if (lookbackDays <= 400) return "1y";
+    if (lookbackDays <= 800) return "2y";
+    return "5y";
+  }
+  if (timeframe === "1H") {
+    if (lookbackDays <= 7) return "7d";
+    if (lookbackDays <= 30) return "1mo";
+    return "3mo";
+  }
+  if (lookbackDays <= 5) return "5d";
+  if (lookbackDays <= 30) return "1mo";
+  return "3mo";
 }
 
 /** Alpaca Data API v2 stock bars (requires ALPACA_API_KEY / SECRET). */
@@ -62,13 +90,17 @@ export async function fetchAlpacaBars(
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-/** Yahoo v8 chart API fallback when Alpaca is unavailable. */
-export async function fetchYahooBars(ticker: string, lookbackDays: number): Promise<Bar[]> {
-  const range =
-    lookbackDays <= 60 ? "3mo" : lookbackDays <= 180 ? "6mo" : lookbackDays <= 400 ? "1y" : "2y";
+/** Yahoo v8 chart API — daily and intraday (1h, 15m). */
+export async function fetchYahooBars(
+  ticker: string,
+  timeframe: string,
+  lookbackDays: number,
+): Promise<Bar[]> {
+  const interval = mapTimeframeToYahooInterval(timeframe);
+  const range = yahooRangeFor(lookbackDays, timeframe);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     ticker,
-  )}?interval=1d&range=${range}`;
+  )}?interval=${interval}&range=${range}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "TradeScoutViewer/1.0" },
     next: { revalidate: 0 },
@@ -102,32 +134,49 @@ export async function fetchYahooBars(ticker: string, lookbackDays: number): Prom
     });
   }
   const cutoff = Date.now() - lookbackDays * 86400000;
-  return bars.filter((b) => b.date.getTime() >= cutoff);
+  return bars.filter((b) => b.date.getTime() >= cutoff).sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-/** Prefer Alpaca; fall back to Yahoo (daily only for Yahoo). */
+/** Prefer Alpaca; fall back to Yahoo (all supported timeframes). */
 export async function fetchMarketBars(
   ticker: string,
   timeframe: string,
   lookbackDays: number,
-): Promise<{ bars: Bar[]; source: BarSource }> {
+  sourcePref: BarSourcePreference = "auto",
+): Promise<{ bars: Bar[]; source: BarSource; note?: string }> {
   const sym = ticker.toUpperCase();
   const days = Math.min(Math.max(7, lookbackDays), 365 * 5);
+  const notes: string[] = [];
 
-  try {
-    const alpaca = await fetchAlpacaBars(sym, timeframe, days);
-    if (alpaca.length > 0) return { bars: alpaca, source: "alpaca" };
-  } catch (e) {
-    console.warn("Alpaca bars:", e);
+  if (sourcePref === "yahoo") {
+    const yahoo = await fetchYahooBars(sym, timeframe, days);
+    if (!yahoo.length) throw new Error("Yahoo returned no bars");
+    return { bars: yahoo, source: "yahoo" };
   }
 
-  if (timeframe !== "1D") {
-    throw new Error("Alpaca unavailable — only daily bars supported via Yahoo fallback");
+  if (sourcePref === "alpaca" || sourcePref === "auto") {
+    try {
+      const alpaca = await fetchAlpacaBars(sym, timeframe, days);
+      if (alpaca.length > 0) return { bars: alpaca, source: "alpaca" };
+      if (sourcePref === "alpaca") {
+        throw new Error("Alpaca returned no bars for this symbol/timeframe");
+      }
+      notes.push("Alpaca returned no bars");
+    } catch (e) {
+      if (sourcePref === "alpaca") {
+        throw e instanceof Error ? e : new Error(String(e));
+      }
+      notes.push(e instanceof Error ? e.message : "Alpaca unavailable");
+    }
   }
 
-  const yahoo = await fetchYahooBars(sym, days);
-  if (!yahoo.length) throw new Error("No historical bars");
-  return { bars: yahoo, source: "yahoo" };
+  const yahoo = await fetchYahooBars(sym, timeframe, days);
+  if (!yahoo.length) throw new Error("No historical bars (Alpaca and Yahoo failed)");
+  return {
+    bars: yahoo,
+    source: "yahoo",
+    note: notes.length ? notes.join("; ") + " — using Yahoo" : "Yahoo fallback",
+  };
 }
 
 /** Chart time: business day string for daily, unix seconds for intraday. */
