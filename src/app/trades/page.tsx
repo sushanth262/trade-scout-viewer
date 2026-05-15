@@ -138,7 +138,9 @@ export default function TradesPage() {
         values={filterValues}
         onChange={(k, v) => { setFilterValues((p) => ({ ...p, [k]: v })); setPage(0); }}
         onSearch={(t) => { setSearchTicker(t); setPage(0); }}
-        searchPlaceholder="Filter by ticker..."
+        searchValue={searchTicker}
+        symbolSuggest
+        searchPlaceholder="Filter by ticker (autocomplete)…"
       />
 
       <DataTable columns={columns} data={data} loading={loading} emptyMessage="No trades match your filters" />

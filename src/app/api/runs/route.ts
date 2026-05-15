@@ -57,11 +57,15 @@ const emptyAgg = (): AggregateBuckets => ({
 
 const TS_RE = /^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[,.]\d+)?)/;
 
+/** Bot logs use naive UTC timestamps on the VM; mark as Z so browsers convert to local. */
 function parseTimestamp(line: string): string | null {
   const m = TS_RE.exec(line);
   if (!m) return null;
-  // Normalize "," → "." and add T to make ISO-ish
-  return m[1].replace(",", ".").replace(" ", "T");
+  let s = m[1].replace(",", ".").replace(" ", "T");
+  if (!/[zZ]$/.test(s) && !/[+-]\d{2}:\d{2}$/.test(s)) {
+    s += "Z";
+  }
+  return s;
 }
 
 function parseBalanceFromText(text: string): Pick<RunRecord, "balanceLimit" | "portfolioValue"> {

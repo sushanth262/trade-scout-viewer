@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
 import styles from "./FilterBar.module.css";
+import SymbolSearchInput from "./SymbolSearchInput";
 
 interface FilterOption {
   key: string;
@@ -14,29 +14,45 @@ interface Props {
   onChange: (key: string, value: string) => void;
   onSearch?: (term: string) => void;
   searchPlaceholder?: string;
+  /** Ticker field with Alpaca + signal autocomplete (watchlist-style). */
+  symbolSuggest?: boolean;
+  searchValue?: string;
 }
 
-export default function FilterBar({ filters, values, onChange, onSearch, searchPlaceholder }: Props) {
-  const [search, setSearch] = useState("");
-
+export default function FilterBar({
+  filters,
+  values,
+  onChange,
+  onSearch,
+  searchPlaceholder,
+  symbolSuggest,
+  searchValue = "",
+}: Props) {
   return (
     <div className={styles.bar}>
-      {onSearch && (
-        <input
-          className={styles.search}
-          placeholder={searchPlaceholder ?? "Search ticker..."}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            onSearch(e.target.value);
-          }}
-        />
-      )}
+      {onSearch &&
+        (symbolSuggest ? (
+          <SymbolSearchInput
+            value={searchValue}
+            onChange={onSearch}
+            onPick={onSearch}
+            placeholder={searchPlaceholder ?? "Search ticker…"}
+            className={styles.searchSuggest}
+          />
+        ) : (
+          <input
+            className={styles.search}
+            placeholder={searchPlaceholder ?? "Search ticker..."}
+            value={searchValue}
+            onChange={(e) => onSearch(e.target.value)}
+          />
+        ))}
       {filters.map((f) => (
         <div key={f.key} className={styles.group}>
           <label className={styles.label}>{f.label}</label>
           <div className={styles.chips}>
             <button
+              type="button"
               className={`${styles.chip} ${!values[f.key] ? styles.active : ""}`}
               onClick={() => onChange(f.key, "")}
             >
@@ -44,6 +60,7 @@ export default function FilterBar({ filters, values, onChange, onSearch, searchP
             </button>
             {f.options.map((opt) => (
               <button
+                type="button"
                 key={opt}
                 className={`${styles.chip} ${values[f.key] === opt ? styles.active : ""}`}
                 onClick={() => onChange(f.key, values[f.key] === opt ? "" : opt)}

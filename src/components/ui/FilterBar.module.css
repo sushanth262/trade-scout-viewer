@@ -24,6 +24,10 @@
 .search:focus { border-color: var(--brand-500); }
 .search::placeholder { color: var(--text-tertiary); }
 
+.searchSuggest {
+  width: 220px;
+}
+
 .group { display: flex; flex-direction: column; gap: 4px; }
 .label { font-size: 10px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; color: var(--text-secondary); }
 .chips { display: flex; gap: 4px; flex-wrap: wrap; }

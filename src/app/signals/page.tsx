@@ -5,7 +5,7 @@ import DataTable, { Column } from "@/components/ui/DataTable";
 import StatusChip from "@/components/ui/StatusChip";
 import { fetchApi, PaginatedResponse } from "@/lib/api";
 import { Signal } from "@/lib/cosmos";
-import { format } from "date-fns";
+import { formatLocalTime } from "@/lib/time";
 import styles from "./page.module.css";
 
 const filters = [
@@ -20,7 +20,7 @@ const columns: Column<Signal>[] = [
     key: "screened_at",
     header: "Screened",
     width: "150px",
-    render: (r) => r.screened_at ? format(new Date(r.screened_at), "MMM dd, HH:mm") : "—",
+    render: (r) => (r.screened_at ? formatLocalTime(r.screened_at) : "—"),
   },
   {
     key: "bot",
@@ -144,6 +144,9 @@ export default function SignalsPage() {
         values={filterValues}
         onChange={(k, v) => { setFilterValues((p) => ({ ...p, [k]: v })); setPage(0); }}
         onSearch={(t) => { setSearchTicker(t); setPage(0); }}
+        searchValue={searchTicker}
+        symbolSuggest
+        searchPlaceholder="Filter by ticker (autocomplete)…"
       />
 
       <DataTable columns={columns} data={data} loading={loading} emptyMessage="No signals match your filters" />

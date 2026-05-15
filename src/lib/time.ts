@@ -46,6 +46,19 @@ export function formatLocalTimeLong(iso: string | null | undefined): string {
   return _localFmt ? _localFmt.format(d) : d.toLocaleString();
 }
 
+/** Chart axis label in the browser's local time zone. */
+export function formatChartAxisTime(epochMs: number): string {
+  const d = new Date(epochMs);
+  if (isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
 /** Best-effort short IANA-style abbreviation for the user's current zone. */
 export function localTimeZoneAbbr(): string {
   if (typeof Intl === "undefined") return "";

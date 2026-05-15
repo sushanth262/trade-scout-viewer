@@ -9,6 +9,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   BarChart, Bar, ReferenceLine,
 } from "recharts";
+import { formatChartAxisTime, formatLocalTimeLong, localTimeZoneAbbr } from "@/lib/time";
 import styles from "./page.module.css";
 
 interface RunRecord {
@@ -47,6 +48,9 @@ interface RunsResponse {
 }
 
 const WINDOW_OPTIONS = [
+  { hours: 1,   label: "1h"  },
+  { hours: 6,   label: "6h"  },
+  { hours: 12,  label: "12h" },
   { hours: 24,  label: "24h" },
   { hours: 72,  label: "3d"  },
   { hours: 168, label: "7d"  },
@@ -58,25 +62,6 @@ const EARNINGS_COLOR = "#F59E0B"; // warning-500
 const INDICATOR_COLOR = "#7C3AED";
 const SUCCESS_COLOR = "#22C55E"; // success-500
 const FAIL_COLOR      = "#EF4444"; // danger-500
-
-function fmtTimeShort(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-    hour12: false,
-  });
-}
-
-function fmtTimeWithZone(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false, timeZoneName: "short",
-  });
-}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -102,7 +87,7 @@ function LineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
   return (
     <div className={styles.tooltip}>
       <div className={styles.tooltipTime}>
-        <Clock size={11} /> {fmtTimeWithZone(d.iso)}
+        <Clock size={11} /> {formatLocalTimeLong(d.iso)}
       </div>
       {d.ctRun && (
         <div className={styles.tooltipRow}>
@@ -274,8 +259,8 @@ export default function RunsPage() {
         <h1 className={styles.title}>Job Runs</h1>
         <p className={styles.subtitle}>
           Cron-scheduled run history for <strong>copytrade</strong>, <strong>earnings-trade</strong>, and{" "}
-          <strong>indicator-alert-bot</strong> (log under <code>LOG_ROOT</code>, e.g.{" "}
-          <code>claudetrades/…</code>) · auto-refresh every 60s.
+          <strong>indicator-alert-bot</strong> (log under <code>LOG_ROOT</code>) · times in your local zone
+          {localTimeZoneAbbr() ? ` (${localTimeZoneAbbr()})` : ""} · auto-refresh every 60s.
         </p>
       </div>
 
@@ -359,7 +344,7 @@ export default function RunsPage() {
                   type="number"
                   domain={["dataMin", "dataMax"]}
                   scale="time"
-                  tickFormatter={(v) => fmtTimeShort(new Date(v).toISOString())}
+                  tickFormatter={(v) => formatChartAxisTime(Number(v))}
                   tick={{ fontSize: 11, fill: "#6B7A99" }}
                   stroke="#CBD5E1"
                   minTickGap={40}
@@ -485,7 +470,7 @@ export default function RunsPage() {
             <strong>{f.job}:</strong>{" "}
             {f.path ? (
               <>
-                {f.path} · {formatSize(f.sizeBytes)} · last write {f.mtime ? new Date(f.mtime).toLocaleString() : "—"}
+                {f.path} · {formatSize(f.sizeBytes)} · last write {f.mtime ? formatLocalTimeLong(f.mtime) : "—"}
               </>
             ) : (
               "log file not found"
