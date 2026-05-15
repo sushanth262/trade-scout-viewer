@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { getContainer } from "@/lib/cosmos";
-import type { AlertState, TradeEvent } from "@/lib/cosmos";
 import { alpacaTradingGet, hasAlpacaCredentials } from "@/lib/alpaca-data";
+import {
+  buildBotAttribution,
+  propagateOrderBots,
+  resolveOrderBot,
+} from "@/lib/bot-attribution";
 
 const HINT =
   "Set ALPACA_API_KEY and ALPACA_API_SECRET in .env.local to load broker orders.";
@@ -53,54 +56,6 @@ function flattenAlpacaOrders(raw: unknown): Record<string, unknown>[] {
   });
 }
 
-function botFromTrade(t: TradeEvent): string {
-  if (typeof t.bot === "string" && t.bot) return t.bot;
-  const src = t.source;
-  if (src === "copytrade") return "copytrade";
-  if (src === "earnings") return "earnings-trade";
-  return "unknown";
-}
-
-async function fetchOrderIdToBotMap(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-
-  try {
-    const container = await getContainer("trades");
-
-    const { resources: trades } = await container.items
-      .query<TradeEvent>({
-        query:
-          'SELECT TOP 2500 * FROM c WHERE (c.kind = "trade" OR NOT IS_DEFINED(c.kind)) ORDER BY c.timestamp DESC',
-      })
-      .fetchAll();
-
-    for (const t of trades || []) {
-      const oid = (t.order as { id?: string } | undefined)?.id;
-      if (!oid || typeof oid !== "string") continue;
-      const bot = botFromTrade(t);
-      if (!map.has(oid)) map.set(oid, bot);
-      else if (map.get(oid) === "unknown" && bot !== "unknown") map.set(oid, bot);
-    }
-
-    const { resources: alerts } = await container.items
-      .query<AlertState>({
-        query:
-          'SELECT c.alpaca_order_id FROM c WHERE c.kind = "alert_state" AND IS_DEFINED(c.alpaca_order_id)',
-      })
-      .fetchAll();
-
-    for (const a of alerts || []) {
-      const aid = String(a.alpaca_order_id ?? "").trim();
-      if (!aid) continue;
-      map.set(aid, "indicator-alert-bot");
-    }
-  } catch (e) {
-    console.error("orders: cosmos order map:", e);
-  }
-
-  return map;
-}
-
 export async function GET() {
   if (!hasAlpacaCredentials()) {
     return NextResponse.json({
@@ -111,14 +66,15 @@ export async function GET() {
   }
 
   try {
-    const [rawOrders, idToBot] = await Promise.all([
+    const [rawOrders, attribution] = await Promise.all([
       alpacaTradingGet(
         "/v2/orders?status=all&direction=desc&nested=true&limit=500",
       ) as Promise<unknown>,
-      fetchOrderIdToBotMap(),
+      buildBotAttribution(),
     ]);
 
     const flat = flattenAlpacaOrders(rawOrders);
+    propagateOrderBots(flat, attribution);
 
     const orders: FlatOrder[] = flat.map((o) => {
       const id = String(o.id ?? "");
@@ -126,6 +82,8 @@ export async function GET() {
       const klass = String(o.order_class ?? "simple").toLowerCase();
       const order_type_label =
         klass && klass !== "simple" ? `${typeStr} · ${klass}` : typeStr;
+
+      const bot = resolveOrderBot(o, attribution);
 
       return {
         id,
@@ -148,7 +106,7 @@ export async function GET() {
         submitted_at: typeof o.submitted_at === "string" ? o.submitted_at : null,
         filled_at: typeof o.filled_at === "string" ? o.filled_at : null,
         canceled_at: typeof o.canceled_at === "string" ? o.canceled_at : null,
-        bot: idToBot.get(id) ?? "unknown",
+        bot,
       };
     });
 

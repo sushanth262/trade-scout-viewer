@@ -5,22 +5,24 @@ import Link from "next/link";
 import { RefreshCw, PieChart } from "lucide-react";
 import Card from "@/components/ui/Card";
 import BotChip from "@/components/ui/BotChip";
-import { fetchOpenPositionsByBot, type EnrichedBotPosition } from "@/lib/bot-open-positions";
+import { fetchApi } from "@/lib/api";
+import type { BotPositionRow } from "@/app/api/bot-trades-analysis/route";
 import styles from "./page.module.css";
 
+type Group = { bot: string; positions: BotPositionRow[] };
+
 export default function BotTradesAnalysisPage() {
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const [posByBot, setPosByBot] = useState<Map<string, EnrichedBotPosition[]>>(new Map());
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const m = await fetchOpenPositionsByBot(basePath);
-      setPosByBot(m);
+      const j = await fetchApi<{ groups: Group[] }>("/api/bot-trades-analysis");
+      setGroups(j.groups ?? []);
     } catch {
-      setPosByBot(new Map());
+      setGroups([]);
     }
-  }, [basePath]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,11 +50,12 @@ export default function BotTradesAnalysisPage() {
         Bot Trades Analysis
       </h1>
       <p className={styles.subtitle}>
-        Open holdings attributed to each bot from position snapshots, merged with Alpaca unrealized P&L when
-        available. Tickers live in one portfolio — per-bot rows mirror your Position Snapshots UI.
+        Open holdings per bot from monitor snapshots, deduped by which bot submitted the buy in your trade log
+        (both monitors push the full Alpaca book). Alpaca unrealized P&amp;L is attached only to the owning bot per
+        symbol.
       </p>
       <p className={styles.crossLink}>
-        <Link href={`${basePath}/orders`}>View Alpaca orders (with bot filters) →</Link>
+        <Link href="/orders">View Alpaca orders (with bot filters) →</Link>
       </p>
 
       <div className={styles.toolbar}>
@@ -62,14 +65,14 @@ export default function BotTradesAnalysisPage() {
         </button>
       </div>
 
-      {loading && posByBot.size === 0 ? (
+      {loading && groups.length === 0 ? (
         <div className={styles.loading}>
           <div className={styles.spinner} />
           Loading positions…
         </div>
       ) : (
         <div className={styles.botCards}>
-          {[...posByBot.entries()].map(([botKey, positions]) => {
+          {groups.map(({ bot: botKey, positions }) => {
             const unrealized = positions.reduce((s, p) => s + (p.unrealized_pl ?? 0), 0);
             const mv = positions.reduce((s, p) => s + (p.market_value ?? 0), 0);
             const hasPl = positions.some((p) => p.unrealized_pl != null);
@@ -109,7 +112,7 @@ export default function BotTradesAnalysisPage() {
                       {positions.map((p) => (
                         <tr key={p.ticker}>
                           <td>
-                            <Link href={`${basePath}/chart/${encodeURIComponent(p.ticker)}`}>{p.ticker}</Link>
+                            <Link href={`/chart/${encodeURIComponent(p.ticker)}`}>{p.ticker}</Link>
                           </td>
                           <td
                             className={
@@ -140,10 +143,10 @@ export default function BotTradesAnalysisPage() {
         </div>
       )}
 
-      {posByBot.size === 0 && !loading ? (
+      {groups.length === 0 && !loading ? (
         <Card>
           <p className={styles.posEmpty}>
-            No position snapshots yet. Run monitor tasks or refresh after market open.
+            No attributed positions yet. Submitted trades in Cosmos define which bot owns each ticker.
           </p>
         </Card>
       ) : null}
